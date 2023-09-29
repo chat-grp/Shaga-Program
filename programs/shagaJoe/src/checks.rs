@@ -3,7 +3,7 @@ use solana_program::entrypoint::ProgramResult;
 use crate::states::{Session, Escrow};
 use crate::errors::ShagaErrorCode;
 
-pub fn check_can_join_session(session: &Session) -> ProgramResult {
+pub fn check_can_start_rental(session: &Session) -> ProgramResult {
     if !session.can_join() {
         Err(ShagaErrorCode::InvalidSession.into())
     } else {

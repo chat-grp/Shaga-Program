@@ -13,7 +13,7 @@ In the vanilla implementation, the PIN needs to be inserted manually for the pai
                 false);
 "
 
-The Moonlight-Client gets the Server's IP_Address & PublicKey by fetching from the ShagaJoe Program a list of all the session_accounts available, uses it to ping the IP_Addresses to get a latency measure, then when a session to join has been chosen, it invokes the join_session instruction and pays rent in advance.
+The Moonlight-Client gets the Server's IP_Address & PublicKey by fetching from the ShagaJoe Program a list of all the session_accounts available, uses it to ping the IP_Addresses to get a latency measure, then when a session to join has been chosen, it invokes the start_rental instruction and pays rent in advance.
 
 The Sunshine Server then, handles the http request and uses a POST to send the EncryptedPIN & PublicKey received to the server's frontend, where the decryption happens in Typescript.
 

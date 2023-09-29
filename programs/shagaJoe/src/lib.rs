@@ -31,14 +31,19 @@ pub mod shaga {
         create_session::handler(ctx, payload)
     }
 
-    pub fn join_session(ctx: Context<JoinSession>, rent_amount: u64, rental_termination_time: i64) -> Result<()> {
-        join_session::handler(ctx, rent_amount, rental_termination_time)
+    pub fn start_rental(ctx: Context<JoinSession>, rent_amount: u64, rental_termination_time: i64) -> Result<()> {
+        start_rental::handler(ctx, rent_amount, rental_termination_time)
+    }
+
+    pub fn end_rental(ctx: Context<EndRental>, termination_by: TerminationAuthority) -> Result<()> {
+        end_rental::handler(ctx, termination_by)
     }
 
     pub fn terminate_session(ctx: Context<TerminateSession>, termination_by: TerminationAuthority) -> Result<()> {
         terminate_session::handler(ctx, termination_by)
     }
 }
+
 
 
 
@@ -76,8 +81,8 @@ pub struct InitializeSession<'info> {
     #[account(init, payer = creator, space = Session::size(), seeds = [seeds::SEED_SESSION, lender.key().as_ref()], bump)]
     pub session: Account<'info, Session>,
     pub system_program: Program<'info, System>,
+    pub clockwork_thread: AccountInfo<'info>,
 }
-
 
 #[derive(Accounts)]
 pub struct JoinSession<'info> {
@@ -93,7 +98,8 @@ pub struct JoinSession<'info> {
 }
 
 #[derive(Accounts)]
-pub struct TerminateSession<'info> {
+pub struct EndRental<'info> {
+    pub clockwork_thread: AccountInfo<'info>,
     #[account(mut)]
     pub system: Signer<'info>,  // Placeholder, you may need to replace it with an actual system account
     #[account(mut)]
