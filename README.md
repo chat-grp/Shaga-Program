@@ -21,9 +21,12 @@ On the Frontend, the server uses a websocket connection to get updates from the 
 
 Once the session terminates, the Sunshine Server's frontend that still has an open websocket to the relevant session_account, sends a command to the server's backend to unpair all the clients.
 
-
+Here are the links to the Moonlight & Sunshine forks that implement a burner solana wallet encrypted locally (shaga-client & shaga-server git branches):
+- https://github.com/chat-grp/moonlight-android/tree/shaga-client
+- https://github.com/chat-grp/Sunshine/tree/shaga-server
 
 This is a very rudimentary implementation and the work started on the 10th of September to submit the finished project to the Solana Hyperdrive Hackathon.
 
 Infinite gratitude to the folks in the Sunshine-Lizardbyte's discord and to A.Beltramo from the Games on Whales discord for their precious tips on the integration points on Sunshine & Moonlight.
+
 Also this wouldn't have been possible without @GabrielePicco & @JonasHahn help on the solana program side.
