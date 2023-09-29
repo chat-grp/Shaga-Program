@@ -1,19 +1,19 @@
 use anchor_lang::prelude::*;
 use solana_program::entrypoint::ProgramResult;
-use crate::states::{Session, Escrow};
+use crate::states::{affair, Escrow};
 use crate::errors::ShagaErrorCode;
 
-pub fn check_can_start_rental(session: &Session) -> ProgramResult {
-    if !session.can_join() {
-        Err(ShagaErrorCode::InvalidSession.into())
+pub fn check_can_start_rental(affair: &affair) -> ProgramResult {
+    if !affair.can_join() {
+        Err(ShagaErrorCode::InvalidAffair.into())
     } else {
         Ok(())
     }
 }
 
-pub fn check_client_already_in_session(session: &Session, client_key: &Pubkey) -> ProgramResult {
-    if session.client == *client_key {
-        Err(ShagaErrorCode::ClientAlreadyInSession.into())
+pub fn check_client_already_in_affair(affair: &affair, client_key: &Pubkey) -> ProgramResult {
+    if affair.client == *client_key {
+        Err(ShagaErrorCode::ClientAlreadyInAffair.into())
     } else {
         Ok(())
     }

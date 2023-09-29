@@ -2,18 +2,20 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum ShagaErrorCode {
-    #[msg("Invalid Session")]
-    InvalidSession,
+    #[msg("Invalid affair")]
+    InvalidAffair,
     #[msg("Invalid Lender")]
     InvalidLender,
     #[msg("Invalid Payload")]
     InvalidPayload,
-    #[msg("Session List Full")]
-    SessionListFull,
-    #[msg("Client Already in Session")]
-    ClientAlreadyInSession,
+    #[msg("affair List Full")]
+    AffairListFull,
+    #[msg("Client Already in affair")]
+    ClientAlreadyInAffair,
     #[msg("Insufficient Funds")]
     InsufficientFunds,
     #[msg("Invalid Rental Termination Time")]
     InvalidRentalTerminationTime,
+    #[msg("Invalid Termination Time")]
+    InvalidTerminationTime,
 }

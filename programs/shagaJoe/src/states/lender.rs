@@ -5,7 +5,7 @@ use crate::seeds::SEED_LENDER;
 #[derive(InitSpace, Debug, Default)]
 pub struct Lender {
     pub authority: Pubkey,
-    pub sessions: u32,
+    pub affairs: u32,
     pub karma: i32,  // Using i32 to allow both positive and negative karma
 }
 
@@ -18,8 +18,8 @@ impl Lender {
         Pubkey::find_program_address(&[SEED_LENDER, owner.as_ref()], &crate::ID)
     }
 
-    pub fn increment_sessions(&mut self) {
-        self.sessions += 1;
+    pub fn increment_affairs(&mut self) {
+        self.affairs += 1;
     }
 
      pub fn give_thumbs_up(&mut self) {

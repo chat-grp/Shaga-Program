@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
-use crate::{EndRental, Session, Lender, Escrow};
+use crate::{EndRental, affair, Lender, Escrow};
 use crate::errors::ShagaErrorCode;
 use anchor_spl::token::{self, Transfer, TokenAccount};
-use crate::states::SessionState;
+use crate::states::affairState;
 
 pub enum TerminationAuthority {
     Clockwork,
@@ -11,15 +11,18 @@ pub enum TerminationAuthority {
 }
 
 pub fn handler(ctx: Context<EndRental>, termination_by: TerminationAuthority) -> Result<()> {
-    let session_account = &mut ctx.accounts.session;
+    let affair_account = &mut ctx.accounts.affair;
     let lender_account = &mut ctx.accounts.lender;
     let escrow_account = &mut ctx.accounts.escrow;
+    let rental_account = &mut ctx.accounts.rental;
+
 
     // Step 1: Calculate the actual time server was used (in hours)
     let clock = Clock::get()?;
     let current_time = clock.unix_timestamp;
-    let actual_time = (current_time - session_account.rental_start_time) / 3600;  // Convert to hours
-    let actual_payment = (actual_time * session_account.usdc_per_hour) as u64;
+    let actual_time = (current_time - rental_account.rental_start_time) / 3600;
+    let actual_payment = (actual_time * rental_account.rent_amount) as u64;
+
 
     // Step 2: Validate that the escrow has enough funds to cover the payment
     if escrow_account.locked_amount < actual_payment as u64 {
@@ -50,14 +53,14 @@ pub fn handler(ctx: Context<EndRental>, termination_by: TerminationAuthority) ->
         token::transfer(cpi_ctx_refund, refund_amount)?;
     }
 
-    // Step 5: Update lender karma points based on who terminated the session
+    // Step 5: Update lender karma points based on who terminated the affair
     match termination_by {
         TerminationAuthority::Clockwork | TerminationAuthority::Client => lender_account.give_thumbs_up(),
         TerminationAuthority::Server => lender_account.give_thumbs_down(),
     }
 
-    // Step 6: Update session state to indicate it's finished
-    session_account.session_state = SessionState::Finished { client: *ctx.accounts.client.key };
+    // Step 6: Update affair state to indicate it's finished
+    affair_account.affair_state = affairState::Finished { client: *ctx.accounts.client.key };
 
     Ok(())
 }
