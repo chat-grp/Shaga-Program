@@ -1,29 +1,29 @@
-# 💥 Kamikaze Joe 
-Kamikaze Joe is a fully on-chain tactical PvP arena game. Players compete against each other as elite kamikaze agents, members of shadowy organizations willing to blow themselves up to kill their governments' enemy. Carefully manage your energy, evaluate your opponent's moves and decide when to commit the ultimate sacrifice to kill everyone around you.
+Shaga is a peer-2-peer Cloud Gaming protocol that leverages Solana, Sunshine & Moonlight.
 
-This repository contains the necessary code and assets to run the game, which includes both the on-chain state and logic, and a Unity client used for rendering.
+This repo contains the ShagaJoe Program, the Solana logic that is based on @kamikazejoe.
 
-# :gear: Game Mechanics 
-In Kamikaze Joe, players find themselves in an arena where they must strategically outmaneuver their opponents. Every Agent starts with 100 energy. Players can select a range from 1 to 5 and move across the board, consuming the corresponding amount of energy. The chosen energy expenditure determines the number of squares the player will move, provided there are no obstacles in the way. Strategic decision-making is key, as players must balance the need for speed and positioning with the limited energy available. The game map features Rechargers scattered throughout. By reaching Rechargers, players replenish their energy reserves, enabling them to make additional moves. 
-When they feel they are close enough to their opponents, agents can activate their bomb to instantly kill the opponent. Bomb autoinflict 20 damage to energy. Bombs have a 1 square range around you.  
+The TLDR of how the protocol works is this:
+Shaga modifies the phase 1 of the Moonlight protocol (an open-source NVIDIA GameStream Implementation https://games-on-whales.github.io/wolf/stable/protocols/http-pairing.html#_phase_1) by changing the way the PIN to pair the Server & Client is shared.
 
-The last Agent standing wins the game. 
+In the vanilla implementation, the PIN needs to be inserted manually for the pairing to happen. In Shaga, we leverage Solana's ED25519 Keypairs and map them to X25519 Keypairs, then the Moonlight-Client uses its Private X25519 Key and the Server's Public X25519 Key to Encrypt the PIN, then sends it using this http request:
+"
+        String getCert = http.executeShagaPairingCommand("phrase=getservercert&salt=" +
+                        bytesToHex(salt) + "&clientcert=" + bytesToHex(pemCertBytes) +
+                        "&encryptedPin=" + hexEncryptedPin + "&publicKey=" + publicKeyBase58,
+                false);
+"
 
-# :wrench: Technical Details 
+The Moonlight-Client gets the Server's IP_Address & PublicKey by fetching from the ShagaJoe Program a list of all the session_accounts available, uses it to ping the IP_Addresses to get a latency measure, then when a session to join has been chosen, it invokes the join_session instruction and pays rent in advance.
 
-Kamikaze Joe demonstrates that even with the same throughput of the blockchain, it is possible to achieve visually different speeds. The game achieves this by utilizing the Unity engine for rendering, which allows for smooth and visually engaging gameplay experiences.
+The Sunshine Server then, handles the http request and uses a POST to send the EncryptedPIN & PublicKey received to the server's frontend, where the decryption happens in Typescript.
 
-The repository includes the following components:
+On the Frontend, the server uses a websocket connection to get updates from the Session_Account that it's created when the Server wants to start Lending the GamingPC, to get updates on the state of its account, and when the server gets an update that the client has paid rent, the frontend sends the decrypted PIN to the backend and the pairing proceeds business as usual, according to https://games-on-whales.github.io/wolf/stable/protocols/http-pairing.html#_phase_1.
 
-- Program: contains the game implementation for Solana 
+Once the session terminates, the Sunshine Server's frontend that still has an open websocket to the relevant session_account, sends a command to the server's backend to unpair all the clients.
 
-- Unity Client: Contains the Unity project that serves as the game engine and handles the rendering of the game world. The Unity client interacts with the program deployed on the blockchain, allowing players to see the game state in real-time and make moves accordingly.
 
-# 💣 How to play
 
-- 1 to 5 to select energy level
-- WASD to move
-- SPACE to activate bomb
+This is a very rudimentary implementation and the work started on the 10th of September to submit the finished project to the Solana Hyperdrive Hackathon.
 
-# :page_with_curl: License 
-This project is licensed under the MIT License. Feel free to modify and distribute the game according to the terms of the license.
+Infinite gratitude to the folks in the Sunshine-Lizardbyte's discord and to A.Beltramo from the Games on Whales discord for their precious tips on the integration points on Sunshine & Moonlight.
+Also this wouldn't have been possible without @GabrielePicco & @JonasHahn help on the solana program side.
