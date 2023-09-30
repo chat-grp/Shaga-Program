@@ -1,7 +1,8 @@
 use anchor_lang::prelude::*;
-use crate::{Terminateaffair, affairState, errors::ShagaErrorCode};
+use crate::{TerminateAffair, AffairState, errors::ShagaErrorCode};
 use solana_program::clock::Clock;
 use clockwork_sdk::state::{Thread, Trigger, TriggerContext};
+use crate::instructions::TerminationAuthority;
 
 #[error]
 pub enum ErrorCode {
@@ -9,7 +10,7 @@ pub enum ErrorCode {
     InvalidTerminationTime,
 }
 
-pub fn handler(ctx: Context<Terminateaffair>) -> Result<()> {
+pub fn handler(ctx: Context<TerminateAffair>, termination_by: TerminationAuthority) -> Result<()> {
     // Reference to the affair account
     let affair_account = &mut ctx.accounts.affair;
 
@@ -37,8 +38,15 @@ pub fn handler(ctx: Context<Terminateaffair>) -> Result<()> {
         return Err(ShagaErrorCode::InvalidTerminationTime.into());
     }
 
-    // Update the affair state to Finished
-    affair_account.affair_state = affairState::Finished;
+    if let Some(active_rental_pubkey) = affair_account.active_rental {
+        // Invoke end_rental logic here, using active_rental_pubkey to locate the specific Rental account
+    }
+
+    EndRental::handler(ctx, TerminationAuthority::TerminateAffair)?;
+
+    // Update the affair state to Available
+    affair_account.affair_state = AffairState::Available;
+
 
     Ok(())
 }

@@ -40,7 +40,7 @@ pub fn handler(
     affair_object.total_ram_mb = payload.total_ram_mb;
     affair_object.usdc_per_hour = payload.usdc_per_hour;
 
-    affair_object.affair_state = affairState::Waiting;
+    affair_object.affair_state = affairState::Available;
 
     affair_account.set_inner(affair_object);
 

@@ -4,6 +4,9 @@ pub mod initialize;
 pub mod start_rental;
 pub mod terminate_affair;
 pub mod end_rental;
+pub mod collect_fees;
+pub mod initialize_end_rental_thread;
+pub mod initialize_end_affair_thread;
 
 pub use create_lender::*;
 pub use create_affair::*;
@@ -11,3 +14,6 @@ pub use initialize::*;
 pub use start_rental::*;
 pub use terminate_affair::*;
 pub use end_rental::*;
+pub use collect_fees::*;
+pub use initialize_end_affair_thread::*;
+pub use initialize_end_rental_thread::*;
