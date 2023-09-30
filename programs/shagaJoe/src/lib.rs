@@ -85,6 +85,10 @@ pub struct AffairAccounts<'info> {
     pub lender: Account<'info, Lender>,
     #[account(init, payer = creator, space = affair::size(), seeds = SEED_affair, bump)]
     pub affair: Account<'info, Affair>,
+    #[account(mut)]
+    pub affairs_list: Account<'info, AffairsList>,
+    #[account(seeds = [SEED_ESCROW], bump)]
+    pub vault: Account<'info, Escrow>,
     pub system_program: Program<'info, System>,
     #[account(has_one = authority)]
     pub clockwork_thread: Account<'info, clockwork_sdk::state::Thread>,
@@ -99,6 +103,8 @@ pub struct RentalAccounts<'info> {
     pub lender: AccountInfo<'info>,
     #[account(mut)]
     pub affair: Account<'info, Affair>,
+    #[account(mut)]
+    pub affairs_list: Account<'info, AffairsList>,
     #[account(init, payer = client, space = Escrow::size(), seeds = [SEED_ESCROW, lender.key().as_ref(), client.key().as_ref()], bump)]
     pub escrow: Account<'info, Escrow>,
     #[account(init, payer = client, space = Rental::size(), seeds = SEED_RENTAL, bump)]

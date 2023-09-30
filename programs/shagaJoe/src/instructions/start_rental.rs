@@ -129,6 +129,12 @@ pub fn handler(
     // Step 11: Associate the rental account with the affair
     affair_account.rental = Some(*ctx.accounts.rental.to_account_info().key);
 
+    // Step 12: Remove Affair from Affair List
+    let affairs_list_account = &mut ctx.accounts.affairs_list;
+    let affair_pubkey = *ctx.accounts.affair.to_account_info().key;
+    affairs_list_account.remove_affair(affair_pubkey);
+
+
     Ok(())
 }
 

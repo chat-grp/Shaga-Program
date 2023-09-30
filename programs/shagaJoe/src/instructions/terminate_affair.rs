@@ -36,14 +36,25 @@ pub fn handler(
         }
     }
     // Remove the affair from the list of active affairs
-    // TODO: Remove the affair from the AffairList account
-    // affairs_list.remove_affair(*affair_account.to_account_info().key);
+    let affairs_list_account = &mut ctx.accounts.affairs_list;
+    let affair_pubkey = *ctx.accounts.affair.to_account_info().key;
+    affairs_list_account.remove_affair(affair_pubkey);
 
     // Update the affair state to Terminated
     affair_account.affair_state = AffairState::Unavailable;
 
-    // Optionally, close the affair account here if that is part of your logic
-    // TODO: Close the affair account if required
+    // Transfer remaining lamports to the vault and zero out the affair account
+    let remaining_lamports = **ctx.accounts.affair.to_account_info().try_borrow_lamports()?;
+    // Transfer remaining lamports to the vault
+    ctx.accounts.affair.to_account_info().try_transfer_lamports(
+        ctx.accounts.vault.to_account_info(),
+        remaining_lamports
+    )?;
+    // Zero out the data in the affair account
+    let mut data = ctx.accounts.affair.try_borrow_mut_data()?;
+    for byte in data.iter_mut() {
+        *byte = 0;
+    }
 
     Ok(())
 }
@@ -60,6 +71,7 @@ fn construct_rental_context_from_affair(
     let lender = ctx.accounts.lender.to_account_info().clone();
     let system_program = ctx.accounts.system_program.clone();
     let clockwork_thread = ctx.accounts.clockwork_thread.to_account_info().clone();
+    let affairs_list = ctx.accounts.affairs_list.clone();
 
     // Step 2: Derive PDAs
     let (escrow, _bump_escrow) = Pubkey::find_program_address(&[SEED_ESCROW, lender.key.as_ref(), client.key.as_ref()], program_id);
@@ -75,6 +87,7 @@ fn construct_rental_context_from_affair(
         vault: vault.into(),
         system_program,
         clockwork_thread,
+        affairs_list,
     };
 
     // Step 4: Construct RentalAccounts Context
@@ -124,4 +137,13 @@ fn validate_termination_conditions(
     }
 
     Ok(())
+}
+
+#[derive(Accounts)]
+pub struct CloseAffairAccounts<'info> {
+    pub authority: Signer<'info>,
+    #[account(mut, close = authority)]
+    pub affair: Account<'info, Affair>,
+    #[account(mut)]
+    pub recipient: AccountInfo<'info>,
 }

@@ -106,7 +106,14 @@ pub fn handler(
         trigger,
     )?;
 
-    // Step 8: All steps successful, return Ok
+    // Step 9: Add Affair to Affair List
+    let affairs_list_account = &mut ctx.accounts.affairs_list;
+    let affair_pubkey = *ctx.accounts.affair.to_account_info().key;
+
+    // Register the affair
+    affairs_list_account.register_affair(affair_pubkey)?;
+
+    // Step 10: All steps successful, return Ok
     Ok(())
 }
 

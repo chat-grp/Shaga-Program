@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use crate::{RentalAccounts};
-use crate::states::AffairState;
+use crate::states::{AffairState, Rental};
+
 
 pub enum RentalTerminationAuthority {
     Clockwork,
@@ -39,5 +40,32 @@ pub fn handler(ctx: Context<RentalAccounts>, termination_by: RentalTerminationAu
     affair_account.affair_state = AffairState::Available;
     affair_account.rental = None;
 
+    // Step 7: Add Affair Back to Affair List
+    let affairs_list_account = &mut ctx.accounts.affairs_list;
+    let affair_pubkey = *ctx.accounts.affair.to_account_info().key;
+    affairs_list_account.register_affair(affair_pubkey)?;
+
+    // Step 8: Transfer Remaining Lamports to Vault and Zero Out Rental Account
+    let remaining_lamports = **ctx.accounts.rental.to_account_info().try_borrow_lamports()?;
+    // Transfer remaining lamports to the vault
+    ctx.accounts.rental.to_account_info().try_transfer_lamports(
+        ctx.accounts.vault.to_account_info(),
+        remaining_lamports
+    )?;
+    // Zero out the data in the rental account
+    let mut data = ctx.accounts.rental.try_borrow_mut_data()?;
+    for byte in data.iter_mut() {
+        *byte = 0;
+    }
+
     Ok(())
+}
+
+#[derive(Accounts)]
+pub struct CloseRentalAccounts<'info> {
+    pub authority: Signer<'info>,
+    #[account(mut, close = authority)]
+    pub rental: Account<'info, Rental>,
+    #[account(mut)]
+    pub recipient: AccountInfo<'info>,
 }
