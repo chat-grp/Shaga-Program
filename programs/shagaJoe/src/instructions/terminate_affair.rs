@@ -1,52 +1,127 @@
 use anchor_lang::prelude::*;
-use crate::{TerminateAffair, AffairState, errors::ShagaErrorCode};
+use crate::{AffairAccounts, AffairState, errors::ShagaErrorCode, ID, RentalAccounts};
 use solana_program::clock::Clock;
-use clockwork_sdk::state::{Thread, Trigger, TriggerContext};
-use crate::instructions::TerminationAuthority;
+use clockwork_sdk::state::{Thread, TriggerContext};
+use crate::instructions::end_rental::*;
+use crate::states::Affair;
 
-#[error]
-pub enum ErrorCode {
-    #[msg("The affair cannot be terminated before the scheduled time.")]
-    InvalidTerminationTime,
+pub enum AffairTerminationAuthority {
+    Clockwork,
+    Lender,
 }
 
-pub fn handler(ctx: Context<TerminateAffair>, termination_by: TerminationAuthority) -> Result<()> {
-    // Reference to the affair account
-    let affair_account = &mut ctx.accounts.affair;
+// To invoke end_rental
+use crate::instructions::handler as end_rental_handler;
+use crate::seeds::{SEED_ESCROW};
 
-    // Reference to the clockwork_thread account
+
+pub fn handler(
+    ctx: Context<AffairAccounts>,
+    termination_by: AffairTerminationAuthority
+) -> Result<()> {
+    let affair_account = &mut ctx.accounts.affair;
     let clockwork_thread = &ctx.accounts.clockwork_thread;
 
-    // Fetch the current time
-    let clock = Clock::get()?;
-    let current_time = clock.unix_timestamp;
+    // Validate termination conditions
+    validate_termination_conditions(affair_account, clockwork_thread, termination_by)?;
 
-    // Check if the affair can be terminated
-    if current_time < affair_account.affair_termination_time {
-        msg!("affair cannot be terminated before the scheduled time.");
-        return Err(ShagaErrorCode::InvalidTerminationTime.into());
-    }
+    // If Lender is the authority and there's an active rental, terminate it
+    if termination_by == AffairTerminationAuthority::Lender {
+        if let Some(active_rental_pubkey) = affair_account.rental {
+            // Construct RentalAccounts context from AffairAccounts
+            let rental_accounts_context = construct_rental_context_from_affair(&ctx, active_rental_pubkey, &ID)?;
 
-    // Validate that the trigger condition for the Clockwork Thread is met
-    if let TriggerContext::Timestamp { started_at } = clockwork_thread.exec_context.unwrap().trigger_context {
-        if current_time < started_at {
-            msg!("Clockwork Thread has not reached the trigger timestamp yet.");
-            return Err(ShagaErrorCode::InvalidTerminationTime.into());
+            // Call the function to terminate the rental
+            end_rental_handler(rental_accounts_context, RentalTerminationAuthority::TerminateAffair)?;
         }
-    } else {
-        msg!("Invalid trigger context for Clockwork Thread.");
-        return Err(ShagaErrorCode::InvalidTerminationTime.into());
     }
+    // Remove the affair from the list of active affairs
+    // TODO: Remove the affair from the AffairList account
+    // affairs_list.remove_affair(*affair_account.to_account_info().key);
 
-    if let Some(active_rental_pubkey) = affair_account.active_rental {
-        // Invoke end_rental logic here, using active_rental_pubkey to locate the specific Rental account
+    // Update the affair state to Terminated
+    affair_account.affair_state = AffairState::Unavailable;
+
+    // Optionally, close the affair account here if that is part of your logic
+    // TODO: Close the affair account if required
+
+    Ok(())
+}
+
+fn construct_rental_context_from_affair(
+    ctx: &Context<AffairAccounts>,
+    active_rental_pubkey: Pubkey,
+    program_id: &Pubkey,
+) -> Result<Context<RentalAccounts>> {
+
+    // Step 1: Fetch Already Available Accounts
+    let client = ctx.accounts.authority.to_account_info().clone();
+    let affair = ctx.accounts.affair.clone();
+    let lender = ctx.accounts.lender.to_account_info().clone();
+    let system_program = ctx.accounts.system_program.clone();
+    let clockwork_thread = ctx.accounts.clockwork_thread.to_account_info().clone();
+
+    // Step 2: Derive PDAs
+    let (escrow, _bump_escrow) = Pubkey::find_program_address(&[SEED_ESCROW, lender.key.as_ref(), client.key.as_ref()], program_id);
+    let (vault, _bump_vault) = Pubkey::find_program_address(&[SEED_ESCROW], program_id);
+
+    // Step 3: Create a mutable RentalAccounts instance
+    let mut rental_accounts = RentalAccounts {
+        client,
+        affair,
+        lender,
+        escrow: escrow.into(),
+        rental: active_rental_pubkey.into(),
+        vault: vault.into(),
+        system_program,
+        clockwork_thread,
+    };
+
+    // Step 4: Construct RentalAccounts Context
+    let rental_accounts_context = Context {
+        program_id: &ID,
+        accounts: &mut rental_accounts,
+        remaining_accounts: &[],
+        bumps: Default::default(),
+    };
+
+    // Step 5: Return
+    Ok(rental_accounts_context)
+}
+
+fn validate_termination_conditions(
+    affair_account: &Affair,
+    clockwork_thread: &Thread,
+    termination_by: AffairTerminationAuthority,
+) -> Result<()> {
+    let current_time = Clock::get()?.unix_timestamp;
+
+    match termination_by {
+        AffairTerminationAuthority::Clockwork => {
+            if current_time < affair_account.affair_termination_time {
+                msg!("Affair cannot be terminated before the scheduled time.");
+                return Err(ShagaErrorCode::InvalidTerminationTime.into());
+            }
+
+            if affair_account.rental.is_some() {
+                msg!("Affair cannot be terminated by Clockwork if there's an active rental.");
+                return Err(ShagaErrorCode::InvalidTerminationTime.into());
+            }
+
+            if let TriggerContext::Timestamp { started_at } = clockwork_thread.exec_context.unwrap().trigger_context {
+                if current_time < started_at {
+                    msg!("Clockwork Thread has not reached the trigger timestamp yet.");
+                    return Err(ShagaErrorCode::InvalidTerminationTime.into());
+                }
+            } else {
+                msg!("Invalid trigger context for Clockwork Thread.");
+                return Err(ShagaErrorCode::InvalidTerminationTime.into());
+            }
+        },
+        AffairTerminationAuthority::Lender => {
+            // The Server (Lender) is allowed to terminate the affair regardless of the affair_termination_time
+        },
     }
-
-    EndRental::handler(ctx, TerminationAuthority::TerminateAffair)?;
-
-    // Update the affair state to Available
-    affair_account.affair_state = AffairState::Available;
-
 
     Ok(())
 }

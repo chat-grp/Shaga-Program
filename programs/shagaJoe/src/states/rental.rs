@@ -3,14 +3,15 @@
 use anchor_lang::prelude::*;
 use crate::seeds::SEED_RENTAL;
 // TODO: make it possible to extend the rental, if the affair_termination_time allows it
+
 #[account]
 #[derive(InitSpace, Debug)]
 pub struct Rental {
     pub client: Pubkey,
     pub affair: Pubkey,
     pub rent_amount: u64,
-    pub rental_start_time: u64,
-    pub rental_termination_time: u64,
+    pub rental_start_time: i64,
+    pub rental_termination_time: i64,
     pub rental_clockwork_thread_id: Pubkey,
 }
 
@@ -32,8 +33,8 @@ impl Rental {
         self.client = client;
         self.affair = affair;
         self.rent_amount = rent_amount;
-        self.rental_start_time = rental_start_time as u64;
-        self.rental_termination_time = rental_termination_time as u64;
+        self.rental_start_time = rental_start_time;
+        self.rental_termination_time = rental_termination_time;
         self.rental_clockwork_thread_id = rental_clockwork_thread_id;
     }
 

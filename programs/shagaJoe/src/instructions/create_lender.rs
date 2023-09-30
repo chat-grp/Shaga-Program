@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::{InitializeLender, Lender, errors::ShagaErrorCode};
+use crate::{ Lender, errors::ShagaErrorCode};
 
 
 pub fn handler(ctx: Context<InitializeLender>) -> Result<()> {
@@ -14,4 +14,13 @@ pub fn handler(ctx: Context<InitializeLender>) -> Result<()> {
     lender_account.authority = *ctx.accounts.payer.unsigned_key();
 
     Ok(())
+}
+
+#[derive(Accounts)]
+pub struct InitializeLender<'info> {
+    #[account(mut, constraint = is_authorized_to_init_lender(payer))]
+    pub payer: Signer<'info>,
+    #[account(init, payer=payer, space = Lender::size(), seeds = SEED_LENDER, bump)]
+    pub lender: Account<'info, Lender>,
+    pub system_program: Program<'info, System>,
 }

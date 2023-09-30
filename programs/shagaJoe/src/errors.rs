@@ -22,4 +22,8 @@ pub enum ShagaErrorCode {
     AffairAlreadyJoined,
     #[msg("Thread Initialization Failed")]
     ThreadInitializationFailed,
+    #[msg("Missing Rental Context for Session Termination")]
+    MissingRentalContext,
+    #[msg("Wrong Rental Context for Session Termination")]
+    InvalidRentalContext,
 }
