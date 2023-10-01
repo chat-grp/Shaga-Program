@@ -1,10 +1,10 @@
-use anchor_lang::prelude::*;
 use crate::errors::ShagaErrorCode;
 use crate::seeds::SEED_AFFAIR_LIST;
+use anchor_lang::prelude::*;
 pub const MAX_AFFAIRS: usize = 100;
 
 #[account]
-#[derive(InitSpace, Debug, Default)]
+#[derive(InitSpace, Debug)]
 pub struct AffairsList {
     pub active_affairs: [Pubkey; MAX_AFFAIRS],
 }
@@ -30,6 +30,7 @@ impl AffairsList {
         Ok(())
     }
     pub fn remove_affair(&mut self, affair_to_remove: Pubkey) {
-        self.active_affairs.retain(|&affair| affair != affair_to_remove);
+        self.active_affairs
+            .retain(|&affair| affair != affair_to_remove);
     }
 }

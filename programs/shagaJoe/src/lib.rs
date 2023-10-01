@@ -1,15 +1,15 @@
-use anchor_lang::prelude::*;
-use clockwork_sdk::state::{ ThreadAccount};
-use crate::seeds::*;
 use crate::errors as ErrorCode;
+use crate::seeds::*;
+use anchor_lang::prelude::*;
+use clockwork_sdk::state::ThreadAccount;
 
 declare_id!("6AACcBoHBKc2XndsuQpgf6S9M5HP8jDUsgbn7R6EJAMW");
 
-pub mod instructions;
-pub mod states;
-pub mod errors;
-mod seeds;
 pub mod checks;
+pub mod errors;
+pub mod instructions;
+mod seeds;
+pub mod states;
 
 use instructions::*;
 use states::*;
@@ -18,39 +18,32 @@ use states::*;
 pub mod shaga {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>
-    ) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         Ok(())
     }
 
-
-    pub fn initialize_lender(ctx: Context<InitializeLender>
-    ) -> Result<()> {
+    pub fn initialize_lender(ctx: Context<InitializeLender>) -> Result<()> {
         create_lender::handler(ctx)
     }
 
-
-    pub fn create_affair(ctx: Context<AffairAccounts>,
-                         payload: AffairPayload
-    ) -> Result<()> {
+    pub fn create_affair(ctx: Context<AffairAccounts>, payload: AffairPayload) -> Result<()> {
         create_affair::handler(ctx, payload)
     }
 
-    pub fn start_rental(ctx: Context<RentalAccounts>,
-                        rental_termination_time: u64
-    ) -> Result<()> {
+    pub fn start_rental(ctx: Context<RentalAccounts>, rental_termination_time: u64) -> Result<()> {
         start_rental::handler(ctx, rental_termination_time)
     }
 
-    pub fn end_rental(ctx: Context<RentalAccounts>,
-                      termination_by: RentalTerminationAuthority
+    pub fn end_rental(
+        ctx: Context<RentalAccounts>,
+        termination_by: RentalTerminationAuthority,
     ) -> Result<()> {
         end_rental::handler(ctx, termination_by)
     }
 
     pub fn terminate_affair(
         ctx: Context<AffairAccounts>,
-        termination_by: AffairTerminationAuthority
+        termination_by: AffairTerminationAuthority,
     ) -> Result<()> {
         terminate_affair::handler(ctx, termination_by)
     }
@@ -76,8 +69,6 @@ pub mod shaga {
     */
 }
 
-
-
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -89,12 +80,9 @@ pub struct Initialize<'info> {
     pub system_program: Program<'info, System>,
 }
 
-
-
-
 #[derive(Accounts)]
 pub struct AffairAccounts<'info> {
-    #[account(mut)]
+    #[account(mut, constraint = lender.authority == creator.key() @ ErrorCode::ShagaErrorCode::UnauthorizedAffairCreation)]
     pub creator: Signer<'info>,
     #[account(mut, address=Lender::pda(creator.key()).0)]
     pub lender: Account<'info, Lender>,
@@ -136,7 +124,6 @@ pub struct RentalAccounts<'info> {
     #[account(signer)]
     pub rental_clockwork_thread: Account<'info, clockwork_sdk::state::Thread>,
 }
-
 
 /* TODO: OLD VERSION WITH CUSTOM TOKEN PROGRAM (WE'RE USING LAMPORTS IN MVP)
 #[derive(Accounts)]
