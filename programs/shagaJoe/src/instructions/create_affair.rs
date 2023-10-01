@@ -47,7 +47,7 @@ pub fn handler(
     affair_account.gpu_name = payload.gpu_name;
     affair_account.total_ram_mb = payload.total_ram_mb;
     affair_account.usdc_per_hour = payload.usdc_per_hour;
-    affair_account.affair_termination_time = payload.affair_termination_time as i64;
+    affair_account.affair_termination_time = payload.affair_termination_time as u64;
     affair_account.affair_state = AffairState::Available;
 
     // Step 2B: Accounts for terminate_affair instruction
@@ -56,7 +56,7 @@ pub fn handler(
         AccountMeta::new(*ctx.accounts.affair.to_account_info().key, false),
         AccountMeta::new(*ctx.accounts.lender.to_account_info().key, false),
         AccountMeta::new_readonly(*ctx.accounts.system_program.to_account_info().key, false),
-        AccountMeta::new_readonly(*ctx.accounts.clockwork_thread.to_account_info().key, true),
+        AccountMeta::new_readonly(*ctx.accounts.affair_clockwork_thread.to_account_info().key, true),
     ];
 
 
@@ -70,7 +70,7 @@ pub fn handler(
 
     // Step 3: Fetch the current timestamp and validate affair termination time
     let clock = Clock::get()?;
-    let current_time = clock.unix_timestamp;
+    let current_time = clock.unix_timestamp as u64;
     if affair_account.affair_termination_time <= current_time {
         msg!("Affair termination time must be in the future.");
         return Err(ShagaErrorCode::InvalidTerminationTime.into());
@@ -83,7 +83,7 @@ pub fn handler(
     );
     let thread_id_vec: Vec<u8> = thread_id.to_bytes().to_vec();
     let trigger = clockwork_sdk::state::Trigger::Timestamp {
-        unix_ts: affair_account.affair_termination_time,
+        unix_ts: affair_account.affair_termination_time as u64,
     };
 
     // Step 6: Fetch the bump seed associated with the authority
@@ -91,11 +91,11 @@ pub fn handler(
 
     // Step 7: Create the termination thread
     let cpi_ctx = anchor_lang::context::CpiContext::new_with_signer(
-        ctx.accounts.clockwork_thread.to_account_info(),
+        ctx.accounts.affair_clockwork_thread.to_account_info(),
         clockwork_sdk::cpi::ThreadCreate {
             payer: ctx.accounts.creator.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
-            thread: ctx.accounts.clockwork_thread.to_account_info(),
+            thread: ctx.accounts.affair_clockwork_thread.to_account_info(),
             authority: ctx.accounts.authority.to_account_info(),
         },
         &[&[SEED_AUTHORITY_THREAD, &[bump]]],
@@ -121,6 +121,7 @@ pub fn handler(
     Ok(())
 }
 
+/*
 #[derive(Accounts)]
 pub struct InitializeThread<'info> {
     pub payer: Signer<'info>,
@@ -132,3 +133,4 @@ pub struct InitializeThread<'info> {
     pub thread_authority: Account<'info, clockwork_sdk::state::Thread>,
     pub active_rental: AccountInfo<'info>,
 }
+*/

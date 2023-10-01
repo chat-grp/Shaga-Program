@@ -37,7 +37,7 @@ pub mod shaga {
     }
 
     pub fn start_rental(ctx: Context<RentalAccounts>,
-                        rental_termination_time: i64
+                        rental_termination_time: u64
     ) -> Result<()> {
         start_rental::handler(ctx, rental_termination_time)
     }
@@ -55,6 +55,7 @@ pub mod shaga {
         terminate_affair::handler(ctx, termination_by)
     }
 
+    /* TODO: filter who can init affairs
     pub fn is_authorized_to_init_affair(creator: &AccountInfo) -> Result<()> {
         let client_pubkey = creator.key;
 
@@ -66,6 +67,7 @@ pub mod shaga {
             return Err(ErrorCode::ShagaErrorCode::UnauthorizedAffairCreation.into());
         }
     }
+    */
 
     /*
     pub fn collect_fees{
@@ -92,7 +94,7 @@ pub struct Initialize<'info> {
 
 #[derive(Accounts)]
 pub struct AffairAccounts<'info> {
-    #[account(mut, constraint = is_authorized_to_init_affair(creator))]
+    #[account(mut)]
     pub creator: Signer<'info>,
     #[account(mut, address=Lender::pda(creator.key()).0)]
     pub lender: Account<'info, Lender>,
@@ -100,11 +102,17 @@ pub struct AffairAccounts<'info> {
     pub affair: Account<'info, Affair>,
     #[account(mut)]
     pub affairs_list: Account<'info, AffairsList>,
+    #[account(mut, signer)]
+    pub client: AccountInfo<'info>,
+    #[account(mut)]
+    pub active_rental: Account<'info, Rental>,
+    #[account(mut)]
+    pub active_escrow: Account<'info, Escrow>,
     #[account(seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,
     pub system_program: Program<'info, System>,
     #[account(has_one = authority)]
-    pub clockwork_thread: Account<'info, clockwork_sdk::state::Thread>,
+    pub affair_clockwork_thread: Account<'info, clockwork_sdk::state::Thread>,
     pub authority: Signer<'info>,
 }
 
@@ -126,7 +134,7 @@ pub struct RentalAccounts<'info> {
     pub vault: Account<'info, Escrow>,
     pub system_program: Program<'info, System>,
     #[account(signer)]
-    pub clockwork_thread: Account<'info, clockwork_sdk::state::Thread>,
+    pub rental_clockwork_thread: Account<'info, clockwork_sdk::state::Thread>,
 }
 
 

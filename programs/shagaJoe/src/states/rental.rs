@@ -10,8 +10,8 @@ pub struct Rental {
     pub client: Pubkey,
     pub affair: Pubkey,
     pub rent_amount: u64,
-    pub rental_start_time: i64,
-    pub rental_termination_time: i64,
+    pub rental_start_time: u64,
+    pub rental_termination_time: u64,
     pub rental_clockwork_thread_id: Pubkey,
 }
 
@@ -29,7 +29,7 @@ impl Default for Rental {
 }
 
 impl Rental {
-    pub fn initialize(&mut self, client: Pubkey, affair: Pubkey, rent_amount: u64, rental_start_time: i64, rental_termination_time: i64, rental_clockwork_thread_id: Pubkey) {
+    pub fn initialize(&mut self, client: Pubkey, affair: Pubkey, rent_amount: u64, rental_start_time: u64, rental_termination_time: u64, rental_clockwork_thread_id: Pubkey) {
         self.client = client;
         self.affair = affair;
         self.rent_amount = rent_amount;

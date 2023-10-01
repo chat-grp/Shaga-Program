@@ -10,7 +10,7 @@ use solana_program::instruction::AccountMeta;
 
 pub fn handler(
     ctx: Context<RentalAccounts>,
-    rental_termination_time: i64,
+    rental_termination_time: u64,
 ) -> Result<()> {
     let affair_account = &mut ctx.accounts.affair;
     let escrow_account = &mut ctx.accounts.escrow;
@@ -31,16 +31,16 @@ pub fn handler(
 
     // Step 3: Validate rental_termination_time
     let clock = Clock::get()?;
-    let current_time = clock.unix_timestamp;
+    let current_time = clock.unix_timestamp as u64;
     if rental_termination_time > affair_account.affair_termination_time ||
-        rental_termination_time <= current_time as i64 {
+        rental_termination_time <= current_time as u64 {
         msg!("Invalid rental termination time.");
         return Err(ShagaErrorCode::InvalidRentalTerminationTime.into());
     }
 
     // Step 4: Calculate rent cost & fee amount
     let rental_duration_hours = (rental_termination_time - current_time) / 3600;
-    let rent_amount = rental_duration_hours * affair_account.usdc_per_hour as i64;
+    let rent_amount = rental_duration_hours * affair_account.usdc_per_hour as u64;
     let fee_amount = rent_amount / 100; //TODO: EVALUATE ROUNDING ERRORS
 
     // Step 4A: Check balance in terms of Lamports
@@ -88,9 +88,9 @@ pub fn handler(
         *ctx.accounts.client.to_account_info().key,
         *ctx.accounts.affair.to_account_info().key,
         (rent_amount - fee_amount) as u64,
-        current_time as i64,
+        current_time as u64,
         rental_termination_time,
-        *ctx.accounts.clockwork_thread.to_account_info().key,
+        *ctx.accounts.rental_clockwork_thread.to_account_info().key,
     );
 
     // Step 9A: Accounts for instruction
@@ -102,7 +102,7 @@ pub fn handler(
         AccountMeta::new(*ctx.accounts.rental.to_account_info().key, false),
         AccountMeta::new(*ctx.accounts.vault.to_account_info().key, false),
         AccountMeta::new_readonly(*ctx.accounts.system_program.to_account_info().key, false),
-        AccountMeta::new_readonly(*ctx.accounts.clockwork_thread.to_account_info().key, true),  // Signer
+        AccountMeta::new_readonly(*ctx.accounts.rental_clockwork_thread.to_account_info().key, true),  // Signer
     ];
     // Step 9B: Instruction
     let end_rental_instruction = Instruction {
@@ -120,11 +120,11 @@ pub fn handler(
     );
 
     let my_cpi_context= anchor_lang::context::CpiContext::new_with_signer(
-        ctx.accounts.clockwork_thread.to_account_info(),
+        ctx.accounts.rental_clockwork_thread.to_account_info(),
         clockwork_sdk::cpi::ThreadCreate {
             payer: ctx.accounts.client.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
-            thread: ctx.accounts.clockwork_thread.to_account_info(),
+            thread: ctx.accounts.rental_clockwork_thread.to_account_info(),
             authority: ctx.accounts.client.to_account_info(),
         },
         &[&[SEED_THREAD, &[bump]]],
@@ -155,24 +155,30 @@ pub fn handler(
     let affair_pubkey = *ctx.accounts.affair.to_account_info().key;
     affairs_list_account.remove_affair(affair_pubkey);
 
+    // Step 13: Update the Affair account
+    affair_account.active_rental_start_time = current_time;
+    affair_account.due_rent_amount = (rent_amount - fee_amount) as u64;
+    //affair_account.active_locked_amount = (rent_amount - fee_amount) as u64;
+
 
     Ok(())
 }
 
+/*
 #[derive(Accounts)]
 pub struct InitializeThread<'info> {
     pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
     #[account(address = clockwork_sdk::ID)]
     pub clockwork_program: AccountInfo<'info>,
-    #[account(mut, address = clockwork_sdk::state::Thread::pubkey(thread_authority.key().as_ref, active_rental.key().as_ref))]
+    #[account(mut, address = solana_program::pubkey::Pubkey(thread_authority.key().to_bytes().to_vec(), active_rental.key().to_bytes().to_vec()))]
     pub thread: Account<'info, clockwork_sdk::state::Thread>,
     #[account(seeds = [SEED_AUTHORITY_THREAD], bump)]
     pub thread_authority: Account<'info, clockwork_sdk::state::Thread>,
     pub active_rental: AccountInfo<'info>,
 }
 
-/*
+
 #[derive(Accounts)]
 #[instruction(thread_id: Vec<u8>)]
 pub struct StartThread<'info> {

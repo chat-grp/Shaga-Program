@@ -5,38 +5,58 @@ use clockwork_sdk::state::{Thread, TriggerContext};
 use borsh::{BorshSerialize, BorshDeserialize};
 use crate::instructions::end_rental::*;
 use crate::states::Affair;
-use crate::seeds::{SEED_ESCROW};
+use crate::seeds::{SEED_ESCROW, SEED_THREAD, SEED_RENTAL};
 
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(PartialEq, BorshSerialize, BorshDeserialize)]
 pub enum AffairTerminationAuthority {
     Clockwork,
     Lender,
 }
-
-// To invoke end_rental
-use crate::instructions::end_rental::handler as end_rental_handler;
-
-
 
 pub fn handler(
     ctx: Context<AffairAccounts>,
     termination_by: AffairTerminationAuthority
 ) -> Result<()> {
     let affair_account = &mut ctx.accounts.affair;
-    let clockwork_thread = &ctx.accounts.clockwork_thread;
+    let affair_clockwork_thread = &ctx.accounts.affair_clockwork_thread;
 
     // Validate termination conditions
-    validate_termination_conditions(affair_account, clockwork_thread, termination_by)?;
+    validate_termination_conditions(affair_account, affair_clockwork_thread, termination_by)?;
 
-    // If Lender is the authority and there's an active rental, terminate it
     if termination_by == AffairTerminationAuthority::Lender {
-        if let Some(active_rental_pubkey) = affair_account.rental {
-            // Construct RentalAccounts context from AffairAccounts
-            let rental_accounts_context = construct_rental_context_from_affair(&ctx, active_rental_pubkey, &ID)?;
+        if let Some(_active_rental_pubkey) = affair_account.rental {
 
-            // Call the function to terminate the rental
-            end_rental_handler(rental_accounts_context, RentalTerminationAuthority::TerminateAffair)?;
+            // Step 1: Calculate the actual time server was used (in hours)
+            let clock = Clock::get()?;
+            let current_time= clock.unix_timestamp as u64;
+            let actual_time = (current_time - affair_account.active_rental_start_time) / 3600;
+            let actual_payment = actual_time * affair_account.usdc_per_hour;
+
+            // Step 2: Transfer the due payment to the lender (server)
+            let lender_key = ctx.accounts.lender.to_account_info().key;
+            let escrow_key = ctx.accounts.escrow.to_account_info().key;  // Note the corrected field
+            solana_program::program::invoke(
+                &system_instruction::transfer(escrow_key, lender_key, actual_payment),
+                &[
+                    ctx.accounts.escrow.to_account_info().clone(),
+                    ctx.accounts.lender.to_account_info().clone(),
+                    ctx.accounts.system_program.to_account_info().clone(),
+                ]
+            )?;
+
+            // Step 3: Refund the remaining balance to the client
+            let refund_amount = affair_account.locked_amount - actual_payment;
+            if refund_amount > 0 {
+                solana_program::program::invoke(
+                    &system_instruction::transfer(escrow_key, ctx.accounts.client.to_account_info().key, refund_amount),
+                    &[
+                        ctx.accounts.escrow.to_account_info().clone(),
+                        ctx.accounts.client.to_account_info().clone(),
+                        ctx.accounts.system_program.to_account_info().clone(),
+                    ]
+                )?;
+            }
         }
     }
     // Remove the affair from the list of active affairs
@@ -47,15 +67,23 @@ pub fn handler(
     // Update the affair state to Terminated
     affair_account.affair_state = AffairState::Unavailable;
 
-    // Transfer remaining lamports to the vault and zero out the affair account
-    let remaining_lamports = **ctx.accounts.affair.to_account_info().try_borrow_lamports()?;
     // Transfer remaining lamports to the vault
-    ctx.accounts.affair.to_account_info().try_transfer_lamports(
-        ctx.accounts.vault.to_account_info(),
-        remaining_lamports
+    let remaining_lamports = **ctx.accounts.affair.to_account_info().try_borrow_lamports()?;
+    solana_program::program::invoke(
+        &solana_program::system_instruction::transfer(
+            ctx.accounts.affair.to_account_info().key,
+            ctx.accounts.vault.to_account_info().key,
+            remaining_lamports
+        ),
+        &[
+            ctx.accounts.affair.to_account_info().clone(),
+            ctx.accounts.vault.to_account_info().clone(),
+            ctx.accounts.system_program.to_account_info().clone(),
+        ]
     )?;
+
     // Zero out the data in the affair account
-    let mut data = ctx.accounts.affair.try_borrow_mut_data()?;
+    let mut data = ctx.accounts.affair.to_account_info().try_borrow_mut_data()?;
     for byte in data.iter_mut() {
         *byte = 0;
     }
@@ -63,56 +91,12 @@ pub fn handler(
     Ok(())
 }
 
-fn construct_rental_context_from_affair<'a, 'b, 'c, 'd>(
-    ctx: &'a Context<AffairAccounts<'a>>,
-    active_rental_pubkey: Pubkey,
-    program_id: &'a Pubkey,
-) -> Result<Context<'a, 'b, 'c, 'd, RentalAccounts<'a>>> {
-
-    // Step 1: Fetch Already Available Accounts
-    let client = ctx.accounts.authority.to_account_info().clone();
-    let affair = ctx.accounts.affair.clone();
-    let lender = ctx.accounts.lender.clone();
-    let system_program = ctx.accounts.system_program.clone();
-    let clockwork_thread = ctx.accounts.clockwork_thread.to_account_info().clone();
-    let affairs_list = ctx.accounts.affairs_list.clone();
-    let rental = ctx.accounts.active_rental_pubkey.into();
-
-    // Step 2: Derive PDAs
-    let (escrow, _bump_escrow) = Pubkey::find_program_address(&[SEED_ESCROW, lender.key.as_ref(), client.key.as_ref()], program_id);
-    let (vault, _bump_vault) = Pubkey::find_program_address(&[SEED_ESCROW], program_id);
-
-    // Step 3: Create a mutable RentalAccounts instance
-    let mut rental_accounts = RentalAccounts {
-        client,
-        affair,
-        lender,
-        escrow: escrow.into(),
-        rental,
-        vault,
-        system_program,
-        clockwork_thread,
-        affairs_list,
-    };
-
-    // Step 4: Construct RentalAccounts Context
-    let rental_accounts_context = Context {
-        program_id: &ID,
-        accounts: &mut rental_accounts,
-        remaining_accounts: &[],
-        bumps: Default::default(),
-    };
-
-    // Step 5: Return
-    Ok(rental_accounts_context)
-}
-
 fn validate_termination_conditions(
     affair_account: &Affair,
-    clockwork_thread: &Thread,
+    affair_clockwork_thread: &Thread,
     termination_by: AffairTerminationAuthority,
 ) -> Result<()> {
-    let current_time = Clock::get()?.unix_timestamp;
+    let current_time = Clock::get()?.unix_timestamp as u64;
 
     match termination_by {
         AffairTerminationAuthority::Clockwork => {
@@ -126,7 +110,7 @@ fn validate_termination_conditions(
                 return Err(ShagaErrorCode::InvalidTerminationTime.into());
             }
 
-            if let TriggerContext::Timestamp { started_at } = clockwork_thread.exec_context.unwrap().trigger_context {
+            if let TriggerContext::Timestamp { started_at } = affair_clockwork_thread.exec_context.unwrap().trigger_context {
                 if current_time < started_at {
                     msg!("Clockwork Thread has not reached the trigger timestamp yet.");
                     return Err(ShagaErrorCode::InvalidTerminationTime.into());

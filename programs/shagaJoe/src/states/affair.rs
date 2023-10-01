@@ -27,7 +27,10 @@ pub struct Affair {
     pub total_ram_mb: u32,
     pub usdc_per_hour: u32,
     pub affair_state: AffairState,
-    pub affair_termination_time: i64,
+    pub affair_termination_time: u64,
+    pub active_rental_start_time: u64,
+    pub due_rent_amount: u64,
+    //pub active_locked_amount: u64,
 }
 
 impl Default for Affair {
@@ -42,6 +45,9 @@ impl Default for Affair {
             usdc_per_hour: 0,
             affair_state: AffairState::default(),
             affair_termination_time: 0,
+            active_rental_start_time: 0,
+            due_rent_amount: 0,
+            //active_locked_amount: 0,
         }
     }
 }
