@@ -73,7 +73,7 @@ pub mod shaga {
 pub struct Initialize<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(init, payer=payer, space = AffairsList::INIT_SPACE, seeds = [SEED_AFFAIR_LIST], bump)]
+    #[account(init, payer=payer, space = AffairsList::size(), seeds = [SEED_AFFAIR_LIST], bump)]
     pub affairs_list: Account<'info, AffairsList>,
     #[account(init, payer=payer, space = Escrow::INIT_SPACE, seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,

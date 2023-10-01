@@ -1,10 +1,18 @@
 // states/affair.rs
 
-use anchor_lang::prelude::*;
-use crate::seeds::SEED_AFFAIR;
 use crate::errors::ShagaErrorCode;
+use crate::seeds::SEED_AFFAIR;
+use anchor_lang::prelude::*;
 
-#[derive(InitSpace, Debug, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(
+    InitSpace,
+    Debug,
+    anchor_lang::AnchorSerialize,
+    anchor_lang::AnchorDeserialize,
+    Clone,
+    PartialEq,
+    Eq,
+)]
 pub enum AffairState {
     Unavailable,
     Available,
@@ -20,6 +28,7 @@ impl Default for AffairState {
 #[derive(InitSpace, Debug)]
 pub struct Affair {
     pub lender: Pubkey,
+    pub client: Pubkey,
     pub rental: Option<Pubkey>,
     pub ip_address: [u8; 15],
     pub cpu_name: [u8; 64],
@@ -37,6 +46,7 @@ impl Default for Affair {
     fn default() -> Self {
         Self {
             lender: Pubkey::default(),
+            client: Pubkey::default(),
             rental: Option::from(Pubkey::default()),
             ip_address: [0u8; 15],
             cpu_name: [0u8; 64],
@@ -53,7 +63,6 @@ impl Default for Affair {
 }
 
 impl Affair {
-
     pub fn join(&mut self, rental_key: Pubkey) -> Result<()> {
         if self.affair_state != AffairState::Available {
             msg!("Affair is not available for joining.");
