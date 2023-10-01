@@ -6,8 +6,7 @@ pub const MAX_AFFAIRS: usize = 100;
 #[account]
 #[derive(InitSpace, Debug, Default)]
 pub struct AffairsList {
-    #[max_len(MAX_AFFAIRS)]
-    pub active_affairs: Vec<Pubkey>,
+    pub active_affairs: [Pubkey; MAX_AFFAIRS],
 }
 
 impl AffairsList {

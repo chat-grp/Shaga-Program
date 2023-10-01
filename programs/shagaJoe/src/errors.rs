@@ -26,4 +26,6 @@ pub enum ShagaErrorCode {
     MissingRentalContext,
     #[msg("Wrong Rental Context for Session Termination")]
     InvalidRentalContext,
+    #[msg("Only registered lenders can create affairs")]
+    UnauthorizedAffairCreation,
 }

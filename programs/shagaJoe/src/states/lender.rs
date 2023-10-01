@@ -24,7 +24,7 @@ impl Lender {
         self.affairs += 1;
     }
 
-     pub fn give_thumbs_up(&mut self) {
+    pub fn give_thumbs_up(&mut self) {
         self.karma += 1;
     }
 

@@ -70,5 +70,4 @@ impl Affair {
     pub fn can_join(&self) -> bool {
         self.affair_state == AffairState::Available
     }
-
 }

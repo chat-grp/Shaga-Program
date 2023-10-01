@@ -1,14 +1,15 @@
 use anchor_lang::prelude::*;
 use clockwork_sdk::state::{ ThreadAccount};
+use crate::seeds::*;
+use crate::errors as ErrorCode;
 
+declare_id!("6AACcBoHBKc2XndsuQpgf6S9M5HP8jDUsgbn7R6EJAMW");
 
-declare_id!("CtvfzWET3tWdfsDbyV6BDqLfSKDwYgtraPkdnAJw6UEt"); 
-
-mod instructions;
-mod states;
+pub mod instructions;
+pub mod states;
 pub mod errors;
 mod seeds;
-mod checks;
+pub mod checks;
 
 use instructions::*;
 use states::*;
@@ -54,6 +55,18 @@ pub mod shaga {
         terminate_affair::handler(ctx, termination_by)
     }
 
+    pub fn is_authorized_to_init_affair(creator: &AccountInfo) -> Result<()> {
+        let client_pubkey = creator.key;
+
+        let lender_data: Lender = Lender::try_from_slice(&creator.data.borrow())?;
+        if &lender_data.authority == client_pubkey {
+            Ok(())
+        } else {
+            msg!("Only registered lenders can start affairs"); // karma > BAN_VALUE
+            return Err(ErrorCode::ShagaErrorCode::UnauthorizedAffairCreation.into());
+        }
+    }
+
     /*
     pub fn collect_fees{
         collectale
@@ -67,9 +80,9 @@ pub mod shaga {
 pub struct Initialize<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(init, payer=payer, space = AffairsList::size(), seeds = SEED_AFFAIR_LIST, bump)]
+    #[account(init, payer=payer, space = AffairsList::INIT_SPACE, seeds = [SEED_AFFAIR_LIST], bump)]
     pub affairs_list: Account<'info, AffairsList>,
-    #[account(init, payer=payer, space = Escrow::size(), seeds = [SEED_ESCROW], bump)]
+    #[account(init, payer=payer, space = Escrow::INIT_SPACE, seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,
     pub system_program: Program<'info, System>,
 }
@@ -83,7 +96,7 @@ pub struct AffairAccounts<'info> {
     pub creator: Signer<'info>,
     #[account(mut, address=Lender::pda(creator.key()).0)]
     pub lender: Account<'info, Lender>,
-    #[account(init, payer = creator, space = affair::size(), seeds = SEED_affair, bump)]
+    #[account(init, payer = creator, space = Affair::INIT_SPACE, seeds = [SEED_AFFAIR], bump)]
     pub affair: Account<'info, Affair>,
     #[account(mut)]
     pub affairs_list: Account<'info, AffairsList>,
@@ -100,20 +113,20 @@ pub struct RentalAccounts<'info> {
     #[account(mut, signer)]
     pub client: AccountInfo<'info>,
     #[account(mut)]
-    pub lender: AccountInfo<'info>,
+    pub lender: Account<'info, Lender>,
     #[account(mut)]
     pub affair: Account<'info, Affair>,
     #[account(mut)]
     pub affairs_list: Account<'info, AffairsList>,
     #[account(init, payer = client, space = Escrow::size(), seeds = [SEED_ESCROW, lender.key().as_ref(), client.key().as_ref()], bump)]
     pub escrow: Account<'info, Escrow>,
-    #[account(init, payer = client, space = Rental::size(), seeds = SEED_RENTAL, bump)]
+    #[account(init, payer = client, space = Rental::size(), seeds = [SEED_RENTAL, lender.key().as_ref(), client.key().as_ref()], bump)]
     pub rental: Account<'info, Rental>,
     #[account(seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,
     pub system_program: Program<'info, System>,
     #[account(signer)]
-    pub clockwork_thread: AccountInfo<'info>,
+    pub clockwork_thread: Account<'info, clockwork_sdk::state::Thread>,
 }
 
 

@@ -1,9 +1,11 @@
 use anchor_lang::prelude::*;
+use solana_program::pubkey::Pubkey;
 use crate::{ RentalAccounts, errors::ShagaErrorCode, ID};
 use anchor_lang::solana_program::{
     instruction::Instruction, native_token::LAMPORTS_PER_SOL };
 use crate::instructions::RentalTerminationAuthority;
-use crate::seeds::{ SEED_THREAD};
+use crate::seeds::{SEED_AUTHORITY_THREAD, SEED_THREAD};
+use solana_program::instruction::AccountMeta;
 
 
 pub fn handler(
@@ -14,7 +16,6 @@ pub fn handler(
     let escrow_account = &mut ctx.accounts.escrow;
     let rental_account = &mut ctx.accounts.rental;
     let client_account = &mut ctx.accounts.client;
-    let clockwork_program = clockwork_sdk::ThreadProgram;
 
     // Step 1: Verify that the transaction is signed by the client
     if !client_account.is_signer {
@@ -49,10 +50,31 @@ pub fn handler(
     }
 
     // Step 5: Transfer fee to the vault
-    client_account.try_transfer_lamports(&ctx.accounts.vault, fee_amount as u64)?;
+    solana_program::program::invoke(
+        &solana_program::system_instruction::transfer(
+            client_account.key,
+            &ctx.accounts.vault.key(),
+            fee_amount as u64
+        ),
+        &[client_account.clone(),
+            ctx.accounts.vault.to_account_info().clone(),
+            ctx.accounts.system_program.to_account_info().clone(),
+        ]
+    )?;
 
     // Step 6: Transfer the rent to the escrow
-    client_account.try_transfer_lamports(escrow_account, (rent_amount - fee_amount) as u64)?;
+    solana_program::program::invoke(
+        &solana_program::system_instruction::transfer(
+            client_account.key,
+            escrow_account.to_account_info().key,
+            (rent_amount - fee_amount) as u64
+        ),
+        &[
+            client_account.clone(),
+            escrow_account.to_account_info().clone(),
+            ctx.accounts.system_program.to_account_info().clone(),
+        ]
+    )?;
 
     // Step 6A: Update locked amount flag in Escrow
     escrow_account.locked_amount = (rent_amount - fee_amount) as u64;
@@ -73,14 +95,14 @@ pub fn handler(
 
     // Step 9A: Accounts for instruction
     let end_rental_accounts = vec![
-        ctx.accounts.client.to_account_info().to_account_meta(true),  // Signer
-        ctx.accounts.affair.to_account_info().to_account_meta(false),
-        ctx.accounts.lender.to_account_info().to_account_meta(false),
-        ctx.accounts.escrow.to_account_info().to_account_meta(false),
-        ctx.accounts.rental.to_account_info().to_account_meta(false),
-        ctx.accounts.vault.to_account_info().to_account_meta(false),
-        ctx.accounts.system_program.to_account_info().to_account_meta(false),
-        ctx.accounts.clockwork_thread.to_account_info().to_account_meta(true),  // Signer
+        AccountMeta::new_readonly(*ctx.accounts.client.to_account_info().key, true),  // Signer
+        AccountMeta::new(*ctx.accounts.affair.to_account_info().key, false),
+        AccountMeta::new(*ctx.accounts.lender.to_account_info().key, false),
+        AccountMeta::new(*ctx.accounts.escrow.to_account_info().key, false),
+        AccountMeta::new(*ctx.accounts.rental.to_account_info().key, false),
+        AccountMeta::new(*ctx.accounts.vault.to_account_info().key, false),
+        AccountMeta::new_readonly(*ctx.accounts.system_program.to_account_info().key, false),
+        AccountMeta::new_readonly(*ctx.accounts.clockwork_thread.to_account_info().key, true),  // Signer
     ];
     // Step 9B: Instruction
     let end_rental_instruction = Instruction {
@@ -97,9 +119,8 @@ pub fn handler(
         ctx.program_id
     );
 
-    // TODO: why is it "clockwork_sdk::cpi::CpiContext: and not "anchor_lang::context::CpiContext"??
-    let my_cpi_context= clockwork_sdk::cpi::CpiContext::new_with_signer(
-        clockwork_program.to_account_info(),
+    let my_cpi_context= anchor_lang::context::CpiContext::new_with_signer(
+        ctx.accounts.clockwork_thread.to_account_info(),
         clockwork_sdk::cpi::ThreadCreate {
             payer: ctx.accounts.client.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
@@ -142,12 +163,13 @@ pub fn handler(
 pub struct InitializeThread<'info> {
     pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
-    pub clockwork_program: Program<'info, clockwork_sdk::ThreadProgram>,
-    #[account(mut, address = clockwork_sdk::state::Thread::pubkey(thread_authority.key(), thread_id))]
+    #[account(address = clockwork_sdk::ID)]
+    pub clockwork_program: AccountInfo<'info>,
+    #[account(mut, address = clockwork_sdk::state::Thread::pubkey(thread_authority.key().as_ref, active_rental.key().as_ref))]
     pub thread: Account<'info, clockwork_sdk::state::Thread>,
-    #[account(seeds = [THREAD_AUTHORITY_SEED], bump)]
+    #[account(seeds = [SEED_AUTHORITY_THREAD], bump)]
     pub thread_authority: Account<'info, clockwork_sdk::state::Thread>,
-    pub active_rental: Option<Pubkey>,
+    pub active_rental: AccountInfo<'info>,
 }
 
 /*

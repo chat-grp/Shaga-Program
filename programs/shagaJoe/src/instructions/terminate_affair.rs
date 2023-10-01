@@ -2,17 +2,21 @@ use anchor_lang::prelude::*;
 use crate::{AffairAccounts, AffairState, errors::ShagaErrorCode, ID, RentalAccounts};
 use solana_program::clock::Clock;
 use clockwork_sdk::state::{Thread, TriggerContext};
+use borsh::{BorshSerialize, BorshDeserialize};
 use crate::instructions::end_rental::*;
 use crate::states::Affair;
+use crate::seeds::{SEED_ESCROW};
 
+
+#[derive(BorshSerialize, BorshDeserialize)]
 pub enum AffairTerminationAuthority {
     Clockwork,
     Lender,
 }
 
 // To invoke end_rental
-use crate::instructions::handler as end_rental_handler;
-use crate::seeds::{SEED_ESCROW};
+use crate::instructions::end_rental::handler as end_rental_handler;
+
 
 
 pub fn handler(
@@ -59,19 +63,20 @@ pub fn handler(
     Ok(())
 }
 
-fn construct_rental_context_from_affair(
-    ctx: &Context<AffairAccounts>,
+fn construct_rental_context_from_affair<'a, 'b, 'c, 'd>(
+    ctx: &'a Context<AffairAccounts<'a>>,
     active_rental_pubkey: Pubkey,
-    program_id: &Pubkey,
-) -> Result<Context<RentalAccounts>> {
+    program_id: &'a Pubkey,
+) -> Result<Context<'a, 'b, 'c, 'd, RentalAccounts<'a>>> {
 
     // Step 1: Fetch Already Available Accounts
     let client = ctx.accounts.authority.to_account_info().clone();
     let affair = ctx.accounts.affair.clone();
-    let lender = ctx.accounts.lender.to_account_info().clone();
+    let lender = ctx.accounts.lender.clone();
     let system_program = ctx.accounts.system_program.clone();
     let clockwork_thread = ctx.accounts.clockwork_thread.to_account_info().clone();
     let affairs_list = ctx.accounts.affairs_list.clone();
+    let rental = ctx.accounts.active_rental_pubkey.into();
 
     // Step 2: Derive PDAs
     let (escrow, _bump_escrow) = Pubkey::find_program_address(&[SEED_ESCROW, lender.key.as_ref(), client.key.as_ref()], program_id);
@@ -83,8 +88,8 @@ fn construct_rental_context_from_affair(
         affair,
         lender,
         escrow: escrow.into(),
-        rental: active_rental_pubkey.into(),
-        vault: vault.into(),
+        rental,
+        vault,
         system_program,
         clockwork_thread,
         affairs_list,
