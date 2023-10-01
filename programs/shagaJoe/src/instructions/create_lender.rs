@@ -1,7 +1,6 @@
-use anchor_lang::prelude::*;
-use crate::{ Lender, errors::ShagaErrorCode};
 use crate::seeds::SEED_LENDER;
-
+use crate::{errors::ShagaErrorCode, Lender};
+use anchor_lang::prelude::*;
 
 pub fn handler(ctx: Context<InitializeLender>) -> Result<()> {
     let lender_account = &mut ctx.accounts.lender;
@@ -17,11 +16,11 @@ pub fn handler(ctx: Context<InitializeLender>) -> Result<()> {
     Ok(())
 }
 
-impl<'info> InitializeLender<'info> {
-    pub fn is_authorized_to_init_lender(creator: &AccountInfo) -> Result<()> {
-        Ok(())
-    }
-}
+// impl<'info> InitializeLender<'info> {
+//     pub fn is_authorized_to_init_lender(creator: &AccountInfo) -> Result<()> {
+//         Ok(())
+//     }
+// }
 
 #[derive(Accounts)]
 pub struct InitializeLender<'info> {

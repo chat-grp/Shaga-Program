@@ -1,13 +1,12 @@
-use anchor_lang::prelude::*;
-use clockwork_sdk::cpi::{thread_create};
-use crate::{AffairAccounts, states::AffairState, ID};
-use solana_program::instruction::Instruction;
-use solana_program::native_token::LAMPORTS_PER_SOL;
 use crate::errors::ShagaErrorCode;
 use crate::instructions::AffairTerminationAuthority;
-use crate::seeds::{SEED_THREAD, SEED_AUTHORITY_THREAD};
+use crate::seeds::{SEED_AUTHORITY_THREAD, SEED_THREAD};
+use crate::{states::AffairState, AffairAccounts, ID};
+use anchor_lang::prelude::*;
+use clockwork_sdk::cpi::thread_create;
 use solana_program::instruction::AccountMeta;
-
+use solana_program::instruction::Instruction;
+use solana_program::native_token::LAMPORTS_PER_SOL;
 
 #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
 pub struct AffairPayload {
@@ -32,16 +31,12 @@ impl Default for AffairPayload {
     }
 }
 
-
-pub fn handler(
-    ctx: Context<AffairAccounts>,
-    payload: AffairPayload,
-) -> Result<()> {
+pub fn handler(ctx: Context<AffairAccounts>, payload: AffairPayload) -> Result<()> {
     // Step 1: Initialize mutable references for Affair and Lender accounts
     let affair_account = &mut ctx.accounts.affair;
 
     // Step 2A: Populate it with payload and default values
-    affair_account.lender = *ctx.accounts.creator.unsigned_key();
+    affair_account.lender = ctx.accounts.creator.key();
     affair_account.ip_address = payload.ip_address;
     affair_account.cpu_name = payload.cpu_name;
     affair_account.gpu_name = payload.gpu_name;
@@ -50,22 +45,24 @@ pub fn handler(
     affair_account.affair_termination_time = payload.affair_termination_time as u64;
     affair_account.affair_state = AffairState::Available;
 
+    let borrow_affair_account = affair_account.clone();
     // Step 2B: Accounts for terminate_affair instruction
     let terminate_affair_accounts = vec![
         AccountMeta::new_readonly(*ctx.accounts.creator.to_account_info().key, true),
-        AccountMeta::new(*ctx.accounts.affair.to_account_info().key, false),
+        AccountMeta::new(borrow_affair_account.key(), false),
         AccountMeta::new(*ctx.accounts.lender.to_account_info().key, false),
         AccountMeta::new_readonly(*ctx.accounts.system_program.to_account_info().key, false),
-        AccountMeta::new_readonly(*ctx.accounts.affair_clockwork_thread.to_account_info().key, true),
+        AccountMeta::new_readonly(
+            *ctx.accounts.affair_clockwork_thread.to_account_info().key,
+            true,
+        ),
     ];
-
-
 
     // Step 2C: Create the terminate_affair_instruction
     let terminate_affair_instruction = Instruction {
         program_id: ID,
         accounts: terminate_affair_accounts,
-        data: AffairTerminationAuthority::Clockwork.try_to_vec()?
+        data: AffairTerminationAuthority::Clockwork.try_to_vec()?,
     };
 
     // Step 3: Fetch the current timestamp and validate affair termination time
@@ -77,18 +74,24 @@ pub fn handler(
     }
 
     // Step 5: Define thread_id with seeds & trigger for the termination thread
-    let (thread_id, bump) = Pubkey::find_program_address(
-        &[SEED_THREAD, ctx.accounts.creator.to_account_info().key.as_ref(), ctx.accounts.affair.to_account_info().key.as_ref()],
-        ctx.program_id
+    let (thread_id, _bump) = Pubkey::find_program_address(
+        &[
+            SEED_THREAD,
+            ctx.accounts.creator.key.as_ref(),
+            borrow_affair_account.key().as_ref(),
+        ],
+        ctx.program_id,
     );
     let thread_id_vec: Vec<u8> = thread_id.to_bytes().to_vec();
     let trigger = clockwork_sdk::state::Trigger::Timestamp {
-        unix_ts: affair_account.affair_termination_time as u64,
+        unix_ts: affair_account.affair_termination_time as i64,
     };
 
     // Step 6: Fetch the bump seed associated with the authority
-    let (pda, bump) = Pubkey::find_program_address(&[SEED_AUTHORITY_THREAD], ctx.program_id);
+    let (_, bump) = Pubkey::find_program_address(&[SEED_AUTHORITY_THREAD], ctx.program_id);
 
+    let cpi_signer: &[&[u8]] = &[SEED_AUTHORITY_THREAD, &[bump]];
+    let binding_seeds = &[cpi_signer];
     // Step 7: Create the termination thread
     let cpi_ctx = anchor_lang::context::CpiContext::new_with_signer(
         ctx.accounts.affair_clockwork_thread.to_account_info(),
@@ -98,7 +101,7 @@ pub fn handler(
             thread: ctx.accounts.affair_clockwork_thread.to_account_info(),
             authority: ctx.accounts.authority.to_account_info(),
         },
-        &[&[SEED_AUTHORITY_THREAD, &[bump]]],
+        binding_seeds,
     );
 
     // Execute the thread creation

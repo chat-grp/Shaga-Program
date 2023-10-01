@@ -1,17 +1,12 @@
-use anchor_lang::prelude::*;
-use solana_program::pubkey::Pubkey;
-use crate::{ RentalAccounts, errors::ShagaErrorCode, ID};
-use anchor_lang::solana_program::{
-    instruction::Instruction, native_token::LAMPORTS_PER_SOL };
 use crate::instructions::RentalTerminationAuthority;
-use crate::seeds::{SEED_AUTHORITY_THREAD, SEED_THREAD};
+use crate::seeds::SEED_THREAD;
+use crate::{errors::ShagaErrorCode, RentalAccounts, ID};
+use anchor_lang::prelude::*;
+use anchor_lang::solana_program::{instruction::Instruction, native_token::LAMPORTS_PER_SOL};
 use solana_program::instruction::AccountMeta;
+use solana_program::pubkey::Pubkey;
 
-
-pub fn handler(
-    ctx: Context<RentalAccounts>,
-    rental_termination_time: u64,
-) -> Result<()> {
+pub fn handler(ctx: Context<RentalAccounts>, rental_termination_time: u64) -> Result<()> {
     let affair_account = &mut ctx.accounts.affair;
     let escrow_account = &mut ctx.accounts.escrow;
     let rental_account = &mut ctx.accounts.rental;
@@ -32,8 +27,9 @@ pub fn handler(
     // Step 3: Validate rental_termination_time
     let clock = Clock::get()?;
     let current_time = clock.unix_timestamp as u64;
-    if rental_termination_time > affair_account.affair_termination_time ||
-        rental_termination_time <= current_time as u64 {
+    if rental_termination_time > affair_account.affair_termination_time
+        || rental_termination_time <= current_time as u64
+    {
         msg!("Invalid rental termination time.");
         return Err(ShagaErrorCode::InvalidRentalTerminationTime.into());
     }
@@ -54,55 +50,57 @@ pub fn handler(
         &solana_program::system_instruction::transfer(
             client_account.key,
             &ctx.accounts.vault.key(),
-            fee_amount as u64
+            fee_amount as u64,
         ),
-        &[client_account.clone(),
+        &[
+            client_account.to_account_info().clone(),
             ctx.accounts.vault.to_account_info().clone(),
             ctx.accounts.system_program.to_account_info().clone(),
-        ]
+        ],
     )?;
 
     // Step 6: Transfer the rent to the escrow
     solana_program::program::invoke(
         &solana_program::system_instruction::transfer(
             client_account.key,
-            escrow_account.to_account_info().key,
-            (rent_amount - fee_amount) as u64
+            &escrow_account.key(),
+            (rent_amount - fee_amount) as u64,
         ),
         &[
             client_account.clone(),
             escrow_account.to_account_info().clone(),
             ctx.accounts.system_program.to_account_info().clone(),
-        ]
+        ],
     )?;
 
     // Step 6A: Update locked amount flag in Escrow
     escrow_account.locked_amount = (rent_amount - fee_amount) as u64;
 
     // Step 7: Mark the affair as joined by setting the rental account pubkey
-    affair_account.join(*ctx.accounts.rental.to_account_info().key).expect("Failed to start rental");
-
+    affair_account
+        .join(rental_account.key())
+        .expect("Failed to start rental");
 
     // Step 8: Initialize the Rental account
     rental_account.initialize(
-        *ctx.accounts.client.to_account_info().key,
-        *ctx.accounts.affair.to_account_info().key,
+        ctx.accounts.client.key(),
+        affair_account.key(),
         (rent_amount - fee_amount) as u64,
         current_time as u64,
         rental_termination_time,
-        *ctx.accounts.rental_clockwork_thread.to_account_info().key,
+        ctx.accounts.rental_clockwork_thread.key(),
     );
 
     // Step 9A: Accounts for instruction
     let end_rental_accounts = vec![
-        AccountMeta::new_readonly(*ctx.accounts.client.to_account_info().key, true),  // Signer
-        AccountMeta::new(*ctx.accounts.affair.to_account_info().key, false),
-        AccountMeta::new(*ctx.accounts.lender.to_account_info().key, false),
-        AccountMeta::new(*ctx.accounts.escrow.to_account_info().key, false),
-        AccountMeta::new(*ctx.accounts.rental.to_account_info().key, false),
-        AccountMeta::new(*ctx.accounts.vault.to_account_info().key, false),
-        AccountMeta::new_readonly(*ctx.accounts.system_program.to_account_info().key, false),
-        AccountMeta::new_readonly(*ctx.accounts.rental_clockwork_thread.to_account_info().key, true),  // Signer
+        AccountMeta::new_readonly(ctx.accounts.client.key(), true), // Signer
+        AccountMeta::new(affair_account.key(), false),
+        AccountMeta::new(ctx.accounts.lender.key(), false),
+        AccountMeta::new(ctx.accounts.escrow.key(), false),
+        AccountMeta::new(rental_account.key(), false),
+        AccountMeta::new(ctx.accounts.vault.key(), false),
+        AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
+        AccountMeta::new_readonly(ctx.accounts.rental_clockwork_thread.key(), true), // Signer
     ];
     // Step 9B: Instruction
     let end_rental_instruction = Instruction {
@@ -112,14 +110,20 @@ pub fn handler(
     };
     // Step 9C: Thread Trigger & Thread_ID
     let trigger = clockwork_sdk::state::Trigger::Timestamp {
-        unix_ts: rental_termination_time,
+        unix_ts: rental_termination_time as i64,
     };
     let (thread_id, bump) = Pubkey::find_program_address(
-        &[SEED_THREAD, ctx.accounts.client.to_account_info().key.as_ref(), ctx.accounts.affair.to_account_info().key.as_ref()],
-        ctx.program_id
+        &[
+            SEED_THREAD,
+            ctx.accounts.client.key().as_ref(),
+            affair_account.key().as_ref(),
+        ],
+        ctx.program_id,
     );
+    let cpi_signer: &[&[u8]] = &[SEED_THREAD, &[bump]];
+    let binding_seeds = &[cpi_signer];
 
-    let my_cpi_context= anchor_lang::context::CpiContext::new_with_signer(
+    let my_cpi_context = anchor_lang::context::CpiContext::new_with_signer(
         ctx.accounts.rental_clockwork_thread.to_account_info(),
         clockwork_sdk::cpi::ThreadCreate {
             payer: ctx.accounts.client.to_account_info(),
@@ -127,15 +131,15 @@ pub fn handler(
             thread: ctx.accounts.rental_clockwork_thread.to_account_info(),
             authority: ctx.accounts.client.to_account_info(),
         },
-        &[&[SEED_THREAD, &[bump]]],
+        binding_seeds,
     );
 
     let thread_id_vec: Vec<u8> = thread_id.to_bytes().to_vec();
 
     clockwork_sdk::cpi::thread_create(
-        my_cpi_context,  // Use the CPI context you've created
+        my_cpi_context, // Use the CPI context you've created
         LAMPORTS_PER_SOL,
-        thread_id_vec,   // Use the converted thread_id
+        thread_id_vec, // Use the converted thread_id
         vec![end_rental_instruction.into()],
         trigger,
     )?;
@@ -148,18 +152,17 @@ pub fn handler(
     lender_account.increment_affairs();
 
     // Step 11: Associate the rental account with the affair
-    affair_account.rental = Some(*ctx.accounts.rental.to_account_info().key);
+    affair_account.rental = Some(rental_account.key());
 
     // Step 12: Remove Affair from Affair List
     let affairs_list_account = &mut ctx.accounts.affairs_list;
-    let affair_pubkey = *ctx.accounts.affair.to_account_info().key;
+    let affair_pubkey = affair_account.key();
     affairs_list_account.remove_affair(affair_pubkey);
 
     // Step 13: Update the Affair account
     affair_account.active_rental_start_time = current_time;
     affair_account.due_rent_amount = (rent_amount - fee_amount) as u64;
     //affair_account.active_locked_amount = (rent_amount - fee_amount) as u64;
-
 
     Ok(())
 }
