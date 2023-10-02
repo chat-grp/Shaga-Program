@@ -1,4 +1,4 @@
-use crate::{errors::*, seeds::*, states::*, ID};
+use crate::{errors::*, seeds::*, states::*};
 use anchor_lang::prelude::*;
 
 #[derive(PartialEq, AnchorSerialize, AnchorDeserialize)]
@@ -45,7 +45,16 @@ pub fn handle_ending_rental(
     let affairs_list_account = &mut ctx.accounts.affairs_list;
     let lender_account = &ctx.accounts.lender;
     let client = &ctx.accounts.client;
+    let signer = &ctx.accounts.signer;
 
+    // check if signer is the client
+    if client.key() != signer.key() {
+        // check if signer is thread. if it is not then fail early.
+        if rental_account.rental_clockwork_thread_id != signer.key() {
+            msg!("Invalid clockwork thread rental termination key.");
+            return Err(ShagaErrorCode::InvalidTerminationTime.into());
+        }
+    }
     // fail early if rental does not exist
     if affair_account.rental.is_none() {
         msg!("No rental found. possibly already terminated or ended by the client.");

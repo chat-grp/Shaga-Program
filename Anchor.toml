@@ -2,13 +2,13 @@
 seeds = false
 
 [programs.localnet]
-shagaJoe = "6AACcBoHBKc2XndsuQpgf6S9M5HP8jDUsgbn7R6EJAMW"
+shagaJoe = "9SwYZxTQUYruFSHYeTqrtB5pTtuGJEGksh7ufpNS1YK5"
 
 [programs.devnet]
-shagaJoe = "6AACcBoHBKc2XndsuQpgf6S9M5HP8jDUsgbn7R6EJAMW"
+shagaJoe = "9SwYZxTQUYruFSHYeTqrtB5pTtuGJEGksh7ufpNS1YK5"
 
 [programs.mainnet]
-shagaJoe = "6AACcBoHBKc2XndsuQpgf6S9M5HP8jDUsgbn7R6EJAMW"
+shagaJoe = "9SwYZxTQUYruFSHYeTqrtB5pTtuGJEGksh7ufpNS1YK5"
 
 [registry]
 url = "https://anchor.projectserum.com"

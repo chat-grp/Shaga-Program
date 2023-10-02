@@ -6,12 +6,13 @@ pub mod seeds;
 pub mod states;
 pub use {checks::*, errors::*, instructions::*, seeds::*, states::*};
 
-declare_id!("6AACcBoHBKc2XndsuQpgf6S9M5HP8jDUsgbn7R6EJAMW");
+declare_id!("9SwYZxTQUYruFSHYeTqrtB5pTtuGJEGksh7ufpNS1YK5");
 #[program]
 pub mod shaga {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+    pub fn initialize(_ctx: Context<Initialize>) -> Result<()> {
+        // preliminary account creation
         Ok(())
     }
 
@@ -44,20 +45,6 @@ pub mod shaga {
     pub fn terminate_vacant_affair(ctx: Context<TerminateVacantAffairAccounts>) -> Result<()> {
         terminate_vacant_affair::handle_vacant_affair_termination(ctx)
     }
-
-    /* TODO: filter who can init affairs
-    pub fn is_authorized_to_init_affair(creator: &AccountInfo) -> Result<()> {
-        let client_pubkey = creator.key;
-
-        let lender_data: Lender = Lender::try_from_slice(&creator.data.borrow())?;
-        if &lender_data.authority == client_pubkey {
-            Ok(())
-        } else {
-            msg!("Only registered lenders can start affairs"); // karma > BAN_VALUE
-            return Err(ErrorCode::ShagaErrorCode::UnauthorizedAffairCreation.into());
-        }
-    }
-    */
 
     /*
     pub fn collect_fees{

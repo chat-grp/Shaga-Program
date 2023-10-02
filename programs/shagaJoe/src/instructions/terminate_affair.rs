@@ -1,8 +1,7 @@
-use crate::{errors::*, seeds::*, states::*, ID};
+use crate::{errors::*, seeds::*, states::*};
 use anchor_lang::prelude::*;
-use clockwork_sdk::state::{Thread, TriggerContext};
 
-use solana_program::{clock::Clock, system_instruction};
+use solana_program::clock::Clock;
 
 #[derive(Accounts)]
 pub struct TerminateAffairAccounts<'info> {
@@ -122,7 +121,6 @@ pub fn handle_affair_termination(ctx: Context<TerminateAffairAccounts>) -> Resul
     let affair_account = &ctx.accounts.affair;
     let escrow = &ctx.accounts.escrow;
     let lender = &ctx.accounts.lender;
-    let system_program = &ctx.accounts.system_program;
     let affairs_list_account = &mut ctx.accounts.affairs_list;
     let vault = &ctx.accounts.vault;
     let client = &ctx.accounts.client;

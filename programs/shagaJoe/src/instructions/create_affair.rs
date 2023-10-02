@@ -2,10 +2,7 @@ use crate::{errors::*, seeds::*, states::*, ID};
 use anchor_lang::prelude::*;
 use anchor_lang::InstructionData;
 use clockwork_sdk::cpi::thread_create;
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    native_token::LAMPORTS_PER_SOL,
-};
+use solana_program::{instruction::Instruction, native_token::LAMPORTS_PER_SOL};
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct AffairPayload {
@@ -34,15 +31,13 @@ impl Default for AffairPayload {
 pub struct CreateAffairAccounts<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-    #[account(mut, address=Lender::pda(authority.key()).0)]
-    pub lender: Account<'info, Lender>,
     #[account(init, payer = authority, space = Affair::INIT_SPACE, seeds = [SEED_AFFAIR], bump)]
     pub affair: Account<'info, Affair>,
     #[account(mut)]
     pub affairs_list: Account<'info, AffairsList>,
     /// CHECK: checked below
     #[account(mut)]
-    pub affair_clockwork_thread: UncheckedAccount<'info>,
+    pub affair_clockwork_thread: SystemAccount<'info>,
     #[account(seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,
     /// CHECK: checked below
@@ -50,6 +45,8 @@ pub struct CreateAffairAccounts<'info> {
     #[account(seeds = [SEED_AUTHORITY_THREAD], bump)]
     pub thread_authority: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
+    #[account(address = clockwork_sdk::ID)]
+    pub clockwork_program: Program<'info, clockwork_sdk::ThreadProgram>,
 }
 
 /// creates an affair by the lender/pc owner/creator.
@@ -59,14 +56,13 @@ pub fn handle_create_affair(
 ) -> Result<()> {
     // Step 1: Initialize mutable references for Affair and Lender accounts
     let affair_account = &mut ctx.accounts.affair;
-    let authority = &ctx.accounts.authority;
-    let lender = &ctx.accounts.lender;
-    let system_program = &ctx.accounts.system_program;
+    let affairs_list_account = &mut ctx.accounts.affairs_list;
     let affair_clockwork_thread = &ctx.accounts.affair_clockwork_thread;
     let thread_authority = &ctx.accounts.thread_authority;
     let authority = &ctx.accounts.authority;
     let vault = &ctx.accounts.vault;
-    let affairs_list_account = &mut ctx.accounts.affairs_list;
+    let system_program = &ctx.accounts.system_program;
+    let clockwork_program = &ctx.accounts.clockwork_program;
 
     // Step 2A: Populate it with payload and default values
     affair_account.authority = authority.key();
@@ -86,7 +82,6 @@ pub fn handle_create_affair(
         accounts: crate::__client_accounts_terminate_vacant_affair_accounts::TerminateVacantAffairAccounts {
           thread: affair_clockwork_thread.key(),
           thread_authority: thread_authority.key(),
-            lender: lender.key(),
             affair: affair_account.key(),
             affairs_list: affairs_list_account.key(),
             vault: vault.key(),
@@ -123,9 +118,9 @@ pub fn handle_create_affair(
         &[
             SEED_THREAD,
             thread_authority.key().as_ref(),
-            borrow_affair_account.key().as_ref(),
+            thread_id_vec.as_slice().as_ref(),
         ],
-        ctx.program_id,
+        &clockwork_program.key(),
     );
     if clockwork_thread_computed.key() != affair_clockwork_thread.key() {
         msg!("Invalid clockwork thread affair termination key.");
@@ -136,7 +131,7 @@ pub fn handle_create_affair(
     let binding_seeds = &[cpi_signer];
     // Step 7: Create the termination thread
     let cpi_ctx = CpiContext::new_with_signer(
-        affair_clockwork_thread.to_account_info(),
+        clockwork_program.to_account_info(),
         clockwork_sdk::cpi::ThreadCreate {
             payer: authority.to_account_info(),
             system_program: system_program.to_account_info(),

@@ -3,20 +3,6 @@
 version = 3
 
 [[package]]
-name = "Shaga_joe"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "clockwork-sdk",
- "getrandom 0.2.10",
- "session-keys",
- "sha2 0.10.8",
- "solana-program",
- "winnow",
-]
-
-[[package]]
 name = "aead"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2030,6 +2016,20 @@ checksum = "75872d278a8f37ef87fa0ddbda7802605cb18344497949862c0d4dcb291eba60"
 dependencies = [
  "digest 0.10.7",
  "keccak",
+]
+
+[[package]]
+name = "shaga_joe"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "clockwork-sdk",
+ "getrandom 0.2.10",
+ "session-keys",
+ "sha2 0.10.8",
+ "solana-program",
+ "winnow",
 ]
 
 [[package]]
