@@ -1,12 +1,38 @@
 use crate::instructions::RentalTerminationAuthority;
-use crate::seeds::SEED_THREAD;
-use crate::{errors::ShagaErrorCode, RentalAccounts, ID};
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{instruction::Instruction, native_token::LAMPORTS_PER_SOL};
-use solana_program::instruction::AccountMeta;
-use solana_program::pubkey::Pubkey;
+use crate::{errors::*, seeds::*, states::*, ID};
 
-pub fn handler(ctx: Context<RentalAccounts>, rental_termination_time: u64) -> Result<()> {
+use anchor_lang::prelude::*;
+
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    native_token::LAMPORTS_PER_SOL,
+};
+
+#[derive(Accounts)]
+pub struct StartRentalAccounts<'info> {
+    #[account(mut)]
+    pub client: Signer<'info>,
+    #[account(mut)]
+    pub lender: Account<'info, Lender>,
+    #[account(mut)]
+    pub affair: Account<'info, Affair>,
+    #[account(mut)]
+    pub affairs_list: Account<'info, AffairsList>,
+    #[account(init, payer = client, space = Escrow::size(), seeds = [SEED_ESCROW, lender.key().as_ref(), client.key().as_ref()], bump)]
+    pub escrow: Account<'info, Escrow>,
+    #[account(init, payer = client, space = Rental::size(), seeds = [SEED_RENTAL, lender.key().as_ref(), client.key().as_ref()], bump)]
+    pub rental: Account<'info, Rental>,
+    #[account(seeds = [SEED_ESCROW], bump)]
+    pub vault: Account<'info, Escrow>,
+    pub system_program: Program<'info, System>,
+    #[account(signer)]
+    pub rental_clockwork_thread: Account<'info, clockwork_sdk::state::Thread>,
+}
+
+pub fn handle_starting_rental(
+    ctx: Context<StartRentalAccounts>,
+    rental_termination_time: u64,
+) -> Result<()> {
     let affair_account = &mut ctx.accounts.affair;
     let escrow_account = &mut ctx.accounts.escrow;
     let rental_account = &mut ctx.accounts.rental;
@@ -67,7 +93,7 @@ pub fn handler(ctx: Context<RentalAccounts>, rental_termination_time: u64) -> Re
             (rent_amount - fee_amount) as u64,
         ),
         &[
-            client_account.clone(),
+            client_account.to_account_info().clone(),
             escrow_account.to_account_info().clone(),
             ctx.accounts.system_program.to_account_info().clone(),
         ],

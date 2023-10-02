@@ -1,14 +1,13 @@
-use crate::errors::ShagaErrorCode;
-use crate::instructions::AffairTerminationAuthority;
-use crate::seeds::{SEED_AUTHORITY_THREAD, SEED_THREAD};
-use crate::{states::AffairState, AffairAccounts, ID};
+use crate::{errors::*, seeds::*, states::*, ID};
 use anchor_lang::prelude::*;
+use anchor_lang::InstructionData;
 use clockwork_sdk::cpi::thread_create;
-use solana_program::instruction::AccountMeta;
-use solana_program::instruction::Instruction;
-use solana_program::native_token::LAMPORTS_PER_SOL;
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    native_token::LAMPORTS_PER_SOL,
+};
 
-#[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct AffairPayload {
     pub ip_address: [u8; 15],
     pub cpu_name: [u8; 64],
@@ -31,12 +30,46 @@ impl Default for AffairPayload {
     }
 }
 
-pub fn handler(ctx: Context<AffairAccounts>, payload: AffairPayload) -> Result<()> {
+#[derive(Accounts)]
+pub struct CreateAffairAccounts<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(mut, address=Lender::pda(authority.key()).0)]
+    pub lender: Account<'info, Lender>,
+    #[account(init, payer = authority, space = Affair::INIT_SPACE, seeds = [SEED_AFFAIR], bump)]
+    pub affair: Account<'info, Affair>,
+    #[account(mut)]
+    pub affairs_list: Account<'info, AffairsList>,
+    /// CHECK: checked below
+    #[account(mut)]
+    pub affair_clockwork_thread: UncheckedAccount<'info>,
+    #[account(seeds = [SEED_ESCROW], bump)]
+    pub vault: Account<'info, Escrow>,
+    /// CHECK: checked below
+    /// The pda that will own and manage the thread.
+    #[account(seeds = [SEED_AUTHORITY_THREAD], bump)]
+    pub thread_authority: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+/// creates an affair by the lender/pc owner/creator.
+pub fn handle_create_affair(
+    ctx: Context<CreateAffairAccounts>,
+    payload: AffairPayload,
+) -> Result<()> {
     // Step 1: Initialize mutable references for Affair and Lender accounts
     let affair_account = &mut ctx.accounts.affair;
+    let authority = &ctx.accounts.authority;
+    let lender = &ctx.accounts.lender;
+    let system_program = &ctx.accounts.system_program;
+    let affair_clockwork_thread = &ctx.accounts.affair_clockwork_thread;
+    let thread_authority = &ctx.accounts.thread_authority;
+    let authority = &ctx.accounts.authority;
+    let vault = &ctx.accounts.vault;
+    let affairs_list_account = &mut ctx.accounts.affairs_list;
 
     // Step 2A: Populate it with payload and default values
-    affair_account.lender = ctx.accounts.creator.key();
+    affair_account.authority = authority.key();
     affair_account.ip_address = payload.ip_address;
     affair_account.cpu_name = payload.cpu_name;
     affair_account.gpu_name = payload.gpu_name;
@@ -47,22 +80,20 @@ pub fn handler(ctx: Context<AffairAccounts>, payload: AffairPayload) -> Result<(
 
     let borrow_affair_account = affair_account.clone();
     // Step 2B: Accounts for terminate_affair instruction
-    let terminate_affair_accounts = vec![
-        AccountMeta::new_readonly(*ctx.accounts.creator.to_account_info().key, true),
-        AccountMeta::new(borrow_affair_account.key(), false),
-        AccountMeta::new(*ctx.accounts.lender.to_account_info().key, false),
-        AccountMeta::new_readonly(*ctx.accounts.system_program.to_account_info().key, false),
-        AccountMeta::new_readonly(
-            *ctx.accounts.affair_clockwork_thread.to_account_info().key,
-            true,
-        ),
-    ];
-
     // Step 2C: Create the terminate_affair_instruction
-    let terminate_affair_instruction = Instruction {
+    let target_ix = Instruction {
         program_id: ID,
-        accounts: terminate_affair_accounts,
-        data: AffairTerminationAuthority::Clockwork.try_to_vec()?,
+        accounts: crate::__client_accounts_terminate_vacant_affair_accounts::TerminateVacantAffairAccounts {
+          thread: affair_clockwork_thread.key(),
+          thread_authority: thread_authority.key(),
+            lender: lender.key(),
+            affair: affair_account.key(),
+            affairs_list: affairs_list_account.key(),
+            vault: vault.key(),
+            system_program: system_program.key(),
+        }
+        .to_account_metas(Some(true)),
+        data: crate::instruction::TerminateVacantAffair {}.data(),
     };
 
     // Step 3: Fetch the current timestamp and validate affair termination time
@@ -72,12 +103,12 @@ pub fn handler(ctx: Context<AffairAccounts>, payload: AffairPayload) -> Result<(
         msg!("Affair termination time must be in the future.");
         return Err(ShagaErrorCode::InvalidTerminationTime.into());
     }
-
+    // , address = Thread::pubkey(thread_authority.key(), thread_id)
     // Step 5: Define thread_id with seeds & trigger for the termination thread
     let (thread_id, _bump) = Pubkey::find_program_address(
         &[
             SEED_THREAD,
-            ctx.accounts.creator.key.as_ref(),
+            thread_authority.key().as_ref(),
             borrow_affair_account.key().as_ref(),
         ],
         ctx.program_id,
@@ -88,18 +119,29 @@ pub fn handler(ctx: Context<AffairAccounts>, payload: AffairPayload) -> Result<(
     };
 
     // Step 6: Fetch the bump seed associated with the authority
-    let (_, bump) = Pubkey::find_program_address(&[SEED_AUTHORITY_THREAD], ctx.program_id);
-
+    let (clockwork_thread_computed, _bump) = Pubkey::find_program_address(
+        &[
+            SEED_THREAD,
+            thread_authority.key().as_ref(),
+            borrow_affair_account.key().as_ref(),
+        ],
+        ctx.program_id,
+    );
+    if clockwork_thread_computed.key() != affair_clockwork_thread.key() {
+        msg!("Invalid clockwork thread affair termination key.");
+        return Err(ShagaErrorCode::InvalidTerminationTime.into());
+    }
+    let bump = *ctx.bumps.get("thread_authority").unwrap();
     let cpi_signer: &[&[u8]] = &[SEED_AUTHORITY_THREAD, &[bump]];
     let binding_seeds = &[cpi_signer];
     // Step 7: Create the termination thread
-    let cpi_ctx = anchor_lang::context::CpiContext::new_with_signer(
-        ctx.accounts.affair_clockwork_thread.to_account_info(),
+    let cpi_ctx = CpiContext::new_with_signer(
+        affair_clockwork_thread.to_account_info(),
         clockwork_sdk::cpi::ThreadCreate {
-            payer: ctx.accounts.creator.to_account_info(),
-            system_program: ctx.accounts.system_program.to_account_info(),
-            thread: ctx.accounts.affair_clockwork_thread.to_account_info(),
-            authority: ctx.accounts.authority.to_account_info(),
+            payer: authority.to_account_info(),
+            system_program: system_program.to_account_info(),
+            thread: affair_clockwork_thread.to_account_info(),
+            authority: thread_authority.to_account_info(),
         },
         binding_seeds,
     );
@@ -109,13 +151,12 @@ pub fn handler(ctx: Context<AffairAccounts>, payload: AffairPayload) -> Result<(
         cpi_ctx,
         LAMPORTS_PER_SOL,
         thread_id_vec,
-        vec![terminate_affair_instruction.into()],
+        vec![target_ix.into()],
         trigger,
     )?;
 
     // Step 9: Add Affair to Affair List
-    let affairs_list_account = &mut ctx.accounts.affairs_list;
-    let affair_pubkey = *ctx.accounts.affair.to_account_info().key;
+    let affair_pubkey = affair_account.key();
 
     // Register the affair
     affairs_list_account.register_affair(affair_pubkey)?;

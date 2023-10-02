@@ -4,15 +4,7 @@ use crate::errors::ShagaErrorCode;
 use crate::seeds::SEED_AFFAIR;
 use anchor_lang::prelude::*;
 
-#[derive(
-    InitSpace,
-    Debug,
-    anchor_lang::AnchorSerialize,
-    anchor_lang::AnchorDeserialize,
-    Clone,
-    PartialEq,
-    Eq,
-)]
+#[derive(InitSpace, Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub enum AffairState {
     Unavailable,
     Available,
@@ -27,7 +19,7 @@ impl Default for AffairState {
 #[account]
 #[derive(InitSpace, Debug)]
 pub struct Affair {
-    pub lender: Pubkey,
+    pub authority: Pubkey,
     pub client: Pubkey,
     pub rental: Option<Pubkey>,
     pub ip_address: [u8; 15],
@@ -45,7 +37,7 @@ pub struct Affair {
 impl Default for Affair {
     fn default() -> Self {
         Self {
-            lender: Pubkey::default(),
+            authority: Pubkey::default(),
             client: Pubkey::default(),
             rental: Option::from(Pubkey::default()),
             ip_address: [0u8; 15],
