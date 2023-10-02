@@ -75,6 +75,7 @@ pub struct Initialize<'info> {
     #[account(init, payer=payer, space = Escrow::INIT_SPACE, seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,
     /// The pda that will own and manage threads.
+    /// CHECK: safe because it is creating an predetermined account
     #[account(init, payer=payer, space = Escrow::INIT_SPACE, seeds = [SEED_AUTHORITY_THREAD], bump)]
     pub thread_authority: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,

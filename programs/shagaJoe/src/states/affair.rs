@@ -77,4 +77,10 @@ impl Affair {
     pub fn can_join(&self) -> bool {
         self.affair_state == AffairState::Available
     }
+
+    pub fn deserialize_data(src: &[u8]) -> Result<Affair> {
+        let mut p = src;
+        let affair = Affair::try_deserialize(&mut p)?;
+        Ok(affair)
+    }
 }

@@ -1,7 +1,7 @@
 // states/rental.rs
 
-use anchor_lang::prelude::*;
 use crate::seeds::SEED_RENTAL;
+use anchor_lang::prelude::*;
 // TODO: make it possible to extend the rental, if the affair_termination_time allows it
 
 #[account]
@@ -29,7 +29,15 @@ impl Default for Rental {
 }
 
 impl Rental {
-    pub fn initialize(&mut self, client: Pubkey, affair: Pubkey, rent_amount: u64, rental_start_time: u64, rental_termination_time: u64, rental_clockwork_thread_id: Pubkey) {
+    pub fn initialize(
+        &mut self,
+        client: Pubkey,
+        affair: Pubkey,
+        rent_amount: u64,
+        rental_start_time: u64,
+        rental_termination_time: u64,
+        rental_clockwork_thread_id: Pubkey,
+    ) {
         self.client = client;
         self.affair = affair;
         self.rent_amount = rent_amount;
@@ -44,5 +52,11 @@ impl Rental {
 
     pub fn size() -> usize {
         8 + Rental::INIT_SPACE
+    }
+
+    pub fn deserialize_data(src: &[u8]) -> Result<Rental> {
+        let mut p = src;
+        let rental = Rental::try_deserialize(&mut p)?;
+        Ok(rental)
     }
 }

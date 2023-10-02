@@ -6,17 +6,15 @@ use solana_program::{clock::Clock, system_instruction};
 
 #[derive(Accounts)]
 pub struct TerminateVacantAffairAccounts<'info> {
+    /// Verify that only this thread can execute the ThreadTick Instruction
+    #[account(signer, constraint = thread.authority.eq(&thread_authority.key()))]
+    pub thread: Account<'info, Thread>,
     #[account(mut)]
     pub lender: Account<'info, Lender>,
     #[account(mut)]
     pub affair: Account<'info, Affair>,
     #[account(mut)]
     pub affairs_list: Account<'info, AffairsList>,
-
-    /// Verify that only this thread can execute the ThreadTick Instruction
-    #[account(signer, constraint = thread.authority.eq(&thread_authority.key()))]
-    pub thread: Account<'info, Thread>,
-
     #[account(seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,
     /// The Thread Admin
