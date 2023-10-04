@@ -41,7 +41,7 @@ export const startRentalStruct = new beet.BeetArgsStruct<
  * @property [_writable_] affairsList
  * @property [_writable_] escrow
  * @property [_writable_] rental
- * @property [] vault
+ * @property [_writable_] vault
  * @property [_writable_] rentalClockworkThread
  * @property [] threadAuthority
  * @property [] clockworkProgram
@@ -120,7 +120,7 @@ export function createStartRentalInstruction(
     },
     {
       pubkey: accounts.vault,
-      isWritable: false,
+      isWritable: true,
       isSigner: false,
     },
     {

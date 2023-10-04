@@ -13,7 +13,6 @@ import * as beet from '@metaplex-foundation/beet'
 export enum RentalTerminationAuthority {
   Clockwork,
   Client,
-  TerminateAffair,
 }
 
 /**

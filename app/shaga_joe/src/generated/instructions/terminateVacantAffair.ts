@@ -22,17 +22,17 @@ export const terminateVacantAffairStruct = new beet.BeetArgsStruct<{
 /**
  * Accounts required by the _terminateVacantAffair_ instruction
  *
- * @property [**signer**] thread
+ * @property [_writable_, **signer**] signer
  * @property [_writable_] affair
  * @property [_writable_] affairsList
- * @property [] vault
+ * @property [_writable_] vault
  * @property [] threadAuthority
  * @category Instructions
  * @category TerminateVacantAffair
  * @category generated
  */
 export type TerminateVacantAffairInstructionAccounts = {
-  thread: web3.PublicKey
+  signer: web3.PublicKey
   affair: web3.PublicKey
   affairsList: web3.PublicKey
   vault: web3.PublicKey
@@ -62,8 +62,8 @@ export function createTerminateVacantAffairInstruction(
   })
   const keys: web3.AccountMeta[] = [
     {
-      pubkey: accounts.thread,
-      isWritable: false,
+      pubkey: accounts.signer,
+      isWritable: true,
       isSigner: true,
     },
     {
@@ -78,7 +78,7 @@ export function createTerminateVacantAffairInstruction(
     },
     {
       pubkey: accounts.vault,
-      isWritable: false,
+      isWritable: true,
       isSigner: false,
     },
     {

@@ -4,28 +4,30 @@ use crate::{errors::*, seeds::*, states::*, ID};
 use anchor_lang::prelude::*;
 use anchor_lang::InstructionData;
 
-use solana_program::{instruction::Instruction, native_token::LAMPORTS_PER_SOL};
+use solana_program::instruction::Instruction;
 
 #[derive(Accounts)]
 pub struct StartRentalAccounts<'info> {
     #[account(mut)]
     pub client: Signer<'info>,
-    #[account(mut)]
+    #[account(mut, seeds = [SEED_LENDER, affair.authority.as_ref()], bump)]
     pub lender: Account<'info, Lender>,
-    #[account(mut)]
+    #[account(mut, seeds = [SEED_AFFAIR, affair.authority.as_ref()], bump)]
     pub affair: Account<'info, Affair>,
-    #[account(mut)]
+    #[account(mut, seeds = [SEED_AFFAIR_LIST], bump)]
     pub affairs_list: Account<'info, AffairsList>,
-    #[account(init, payer = client, space = Escrow::size(), seeds = [SEED_ESCROW, lender.key().as_ref(), client.key().as_ref()], bump)]
+    #[account(init_if_needed, payer = client, space = Escrow::size(), seeds = [SEED_ESCROW, lender.key().as_ref(), client.key().as_ref()], bump)]
     pub escrow: Account<'info, Escrow>,
-    #[account(init, payer = client, space = Rental::size(), seeds = [SEED_RENTAL, lender.key().as_ref(), client.key().as_ref()], bump)]
+    #[account(init_if_needed, payer = client, space = Rental::size(), seeds = [SEED_RENTAL, lender.key().as_ref(), client.key().as_ref()], bump)]
     pub rental: Account<'info, Rental>,
-    #[account(seeds = [SEED_ESCROW], bump)]
+    #[account(mut, seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,
+    /// CHECK: checked below
     #[account(mut)]
-    pub rental_clockwork_thread: SystemAccount<'info>,
+    pub rental_clockwork_thread: UncheckedAccount<'info>,
+    /// CHECK: via seeds
     #[account(seeds = [SEED_AUTHORITY_THREAD], bump)]
-    pub thread_authority: SystemAccount<'info>,
+    pub thread_authority: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
     #[account(address = clockwork_sdk::ID)]
     pub clockwork_program: Program<'info, clockwork_sdk::ThreadProgram>,
@@ -71,9 +73,23 @@ pub fn handle_starting_rental(
     }
 
     // Step 4: Calculate rent cost & fee amount
-    let rental_duration_hours = (rental_termination_time - current_time) / 3600;
-    let rent_amount = rental_duration_hours * affair_account.usdc_per_hour as u64;
-    let fee_amount = rent_amount / 100; //TODO: EVALUATE ROUNDING ERRORS
+    let rental_duration_seconds = rental_termination_time
+        .checked_sub(current_time)
+        .ok_or(ShagaErrorCode::NumericalOverflow)?;
+
+    let rental_duration_hours = rental_duration_seconds
+        .checked_div(3600)
+        .ok_or(ShagaErrorCode::NumericalOverflow)?;
+
+    let rent_amount = rental_duration_hours
+        .checked_mul(affair_account.usdc_per_hour as u64)
+        .ok_or(ShagaErrorCode::NumericalOverflow)?;
+
+    let fee_amount = 1_u128
+        .checked_mul(rent_amount as u128)
+        .ok_or(ShagaErrorCode::NumericalOverflow)?
+        .checked_div(100)
+        .ok_or(ShagaErrorCode::NumericalOverflow)? as u64;
 
     // Step 4A: Check balance in terms of Lamports
     if client_account.lamports() < (rent_amount + fee_amount) as u64 {
@@ -164,34 +180,18 @@ pub fn handle_starting_rental(
         }
         .data(),
     };
-
     // Step 9C: Thread Trigger & Thread_ID
     let trigger = clockwork_sdk::state::Trigger::Timestamp {
         unix_ts: rental_termination_time as i64,
     };
-    let (thread_id, bump) = Pubkey::find_program_address(
+    let (thread_id, _bump) = Pubkey::find_program_address(
         &[
             SEED_THREAD,
-            client_account.key().as_ref(),
-            affair_account.key().as_ref(),
+            thread_authority.key().as_ref(),
+            rental_account.key().as_ref(),
         ],
         ctx.program_id,
     );
-
-    let cpi_signer: &[&[u8]] = &[SEED_THREAD, &[bump]];
-    let binding_seeds = &[cpi_signer];
-
-    let my_cpi_context = anchor_lang::context::CpiContext::new_with_signer(
-        clockwork_program.to_account_info(),
-        clockwork_sdk::cpi::ThreadCreate {
-            payer: client_account.to_account_info(),
-            system_program: system_program.to_account_info(),
-            thread: rental_clockwork_thread.to_account_info(),
-            authority: thread_authority.to_account_info(),
-        },
-        binding_seeds,
-    );
-
     let thread_id_vec: Vec<u8> = thread_id.to_bytes().to_vec();
 
     let (clockwork_thread_computed, _bump) = Pubkey::find_program_address(
@@ -203,19 +203,40 @@ pub fn handle_starting_rental(
         &clockwork_program.key(),
     );
     if clockwork_thread_computed.key() != rental_clockwork_thread.key() {
-        msg!("Invalid clockwork thread rental termination key.");
-        return Err(ShagaErrorCode::InvalidTerminationTime.into());
+        msg!(
+            "expected {} for clockwork thread rental termination key.",
+            clockwork_thread_computed.key()
+        );
+        return Err(ShagaErrorCode::InvalidRentalClockworkKey.into());
     }
+
+    let ta_bump = *ctx.bumps.get("thread_authority").unwrap();
+    let cpi_signer: &[&[u8]] = &[SEED_AUTHORITY_THREAD, &[ta_bump]];
+    let binding_seeds = &[cpi_signer];
+
+    let cpi_ctx = CpiContext::new_with_signer(
+        clockwork_program.to_account_info(),
+        clockwork_sdk::cpi::ThreadCreate {
+            payer: client_account.to_account_info(),
+            system_program: system_program.to_account_info(),
+            thread: rental_clockwork_thread.to_account_info(),
+            authority: thread_authority.to_account_info(),
+        },
+        binding_seeds,
+    );
     clockwork_sdk::cpi::thread_create(
-        my_cpi_context, // Use the CPI context you've created
-        LAMPORTS_PER_SOL,
+        cpi_ctx,       // Use the CPI context you've created
+        1000,          // MINIMUM_FEE
         thread_id_vec, // Use the converted thread_id
         vec![target_ix.into()],
         trigger,
     )?;
+    msg!("thread created");
 
-    // Step 9B: Save the end_rental thread ID in the rental account
-    rental_account.rental_clockwork_thread_id = thread_id.into();
+    // Step 9B: Save the end_rental thread account in the rental account
+    rental_account.rental_clockwork_thread = rental_clockwork_thread.key();
+    rental_account.rental_start_time = current_time;
+    rental_account.rent_amount = (rent_amount - fee_amount) as u64;
 
     // Step 10: increment affairs
     lender.increment_affairs();
@@ -228,6 +249,7 @@ pub fn handle_starting_rental(
     affairs_list.remove_affair(affair_pubkey);
 
     // Step 13: Update the Affair account
+    affair_account.client = client_account.key();
     affair_account.active_rental_start_time = current_time;
     affair_account.due_rent_amount = (rent_amount - fee_amount) as u64;
     //affair_account.active_locked_amount = (rent_amount - fee_amount) as u64;

@@ -31,9 +31,9 @@ impl Default for AffairPayload {
 pub struct CreateAffairAccounts<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-    #[account(init, payer = authority, space = Affair::INIT_SPACE, seeds = [SEED_AFFAIR], bump)]
+    #[account(init, payer = authority, space = Affair::size(), seeds = [SEED_AFFAIR, authority.key().as_ref()], bump)]
     pub affair: Account<'info, Affair>,
-    #[account(mut)]
+    #[account(mut, seeds = [SEED_AFFAIR_LIST], bump)]
     pub affairs_list: Account<'info, AffairsList>,
     /// CHECK: checked below
     #[account(mut)]
@@ -43,7 +43,7 @@ pub struct CreateAffairAccounts<'info> {
     /// CHECK: checked below
     /// The pda that will own and manage the thread.
     #[account(seeds = [SEED_AUTHORITY_THREAD], bump)]
-    pub thread_authority: UncheckedAccount<'info>,
+    pub thread_authority: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
     #[account(address = clockwork_sdk::ID)]
     pub clockwork_program: Program<'info, clockwork_sdk::ThreadProgram>,
@@ -80,8 +80,8 @@ pub fn handle_create_affair(
     let target_ix = Instruction {
         program_id: ID,
         accounts: crate::__client_accounts_terminate_vacant_affair_accounts::TerminateVacantAffairAccounts {
-          thread: affair_clockwork_thread.key(),
-          thread_authority: thread_authority.key(),
+            signer: affair_clockwork_thread.key(),
+            thread_authority: thread_authority.key(),
             affair: affair_account.key(),
             affairs_list: affairs_list_account.key(),
             vault: vault.key(),
@@ -126,8 +126,8 @@ pub fn handle_create_affair(
         msg!("Invalid clockwork thread affair termination key.");
         return Err(ShagaErrorCode::InvalidTerminationTime.into());
     }
-    let bump = *ctx.bumps.get("thread_authority").unwrap();
-    let cpi_signer: &[&[u8]] = &[SEED_AUTHORITY_THREAD, &[bump]];
+    let ta_bump = *ctx.bumps.get("thread_authority").unwrap();
+    let cpi_signer: &[&[u8]] = &[SEED_AUTHORITY_THREAD, &[ta_bump]];
     let binding_seeds = &[cpi_signer];
     // Step 7: Create the termination thread
     let cpi_ctx = CpiContext::new_with_signer(
@@ -144,7 +144,7 @@ pub fn handle_create_affair(
     // Execute the thread creation
     thread_create(
         cpi_ctx,
-        LAMPORTS_PER_SOL,
+        1000, // clockwork MINIMUM_FEE
         thread_id_vec,
         vec![target_ix.into()],
         trigger,

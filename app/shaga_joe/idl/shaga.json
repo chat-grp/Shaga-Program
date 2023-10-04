@@ -148,7 +148,7 @@
         },
         {
           "name": "vault",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -285,7 +285,7 @@
         },
         {
           "name": "vault",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -303,11 +303,11 @@
       ],
       "accounts": [
         {
-          "name": "thread",
-          "isMut": false,
+          "name": "signer",
+          "isMut": true,
           "isSigner": true,
           "docs": [
-            "Verify that only this thread can execute the ThreadTick Instruction"
+            "checked below if signer == client or thread"
           ]
         },
         {
@@ -322,7 +322,7 @@
         },
         {
           "name": "vault",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -492,7 +492,7 @@
             "type": "u64"
           },
           {
-            "name": "rentalClockworkThreadId",
+            "name": "rentalClockworkThread",
             "type": "publicKey"
           }
         ]
@@ -557,9 +557,6 @@
           },
           {
             "name": "Client"
-          },
-          {
-            "name": "TerminateAffair"
           }
         ]
       }
@@ -644,6 +641,26 @@
       "code": 6012,
       "name": "UnauthorizedAffairCreation",
       "msg": "Only registered lenders can create affairs"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidSigner",
+      "msg": "Invalid Signer"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidTerminationInstruction",
+      "msg": "Invalid Termination Instruction."
+    },
+    {
+      "code": 6015,
+      "name": "InvalidRentalClockworkKey",
+      "msg": "Rental Clockwork Key Mismatch."
+    },
+    {
+      "code": 6016,
+      "name": "NumericalOverflow",
+      "msg": "Numerical Overflow."
     }
   ],
   "metadata": {

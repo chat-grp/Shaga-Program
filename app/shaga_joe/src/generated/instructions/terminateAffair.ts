@@ -29,7 +29,7 @@ export const terminateAffairStruct = new beet.BeetArgsStruct<{
  * @property [_writable_] affairsList
  * @property [_writable_] escrow
  * @property [_writable_] rental
- * @property [] vault
+ * @property [_writable_] vault
  * @category Instructions
  * @category TerminateAffair
  * @category generated
@@ -104,7 +104,7 @@ export function createTerminateAffairInstruction(
     },
     {
       pubkey: accounts.vault,
-      isWritable: false,
+      isWritable: true,
       isSigner: false,
     },
     {

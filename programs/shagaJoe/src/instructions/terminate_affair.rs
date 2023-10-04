@@ -10,19 +10,19 @@ pub struct TerminateAffairAccounts<'info> {
     /// CHECK: checked below. possibly none.
     #[account(mut)]
     pub client: SystemAccount<'info>,
-    #[account(mut, has_one = authority @ ShagaErrorCode::UnauthorizedAffairCreation)]
+    #[account(mut, has_one = authority @ ShagaErrorCode::UnauthorizedAffairCreation, seeds = [SEED_LENDER, affair.authority.as_ref()], bump)]
     pub lender: Account<'info, Lender>,
-    #[account(mut, seeds = [SEED_AFFAIR], bump)]
+    #[account(mut, has_one = authority, seeds = [SEED_AFFAIR, authority.key().as_ref()], bump)]
     pub affair: Account<'info, Affair>,
-    #[account(mut)]
+    #[account(mut, seeds = [SEED_AFFAIR_LIST], bump)]
     pub affairs_list: Account<'info, AffairsList>,
     /// CHECK: checked below. possibly none.
-    #[account(mut, seeds = [SEED_ESCROW, affair.key().as_ref(), client.key().as_ref()], bump)]
+    #[account(mut, seeds = [SEED_ESCROW, lender.key().as_ref(), client.key().as_ref()], bump)]
     pub escrow: AccountInfo<'info>, // Account<'info, Escrow>,
     /// CHECK: checked below. possibly none.
     #[account(mut, seeds = [SEED_RENTAL, lender.key().as_ref(), client.key().as_ref()], bump)]
     pub rental: AccountInfo<'info>,
-    #[account(seeds = [SEED_ESCROW], bump)]
+    #[account(mut, seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,
     pub system_program: Program<'info, System>,
 }
@@ -79,39 +79,50 @@ impl<'info> TerminateAffairAccounts<'info> {
 
         let actual_time = (current_time - rental.rental_start_time) / 3600;
         let actual_payment = actual_time * rental.rent_amount;
-
-        // Step 3: Transfer the due payment to the lender (server)
-        solana_program::program::invoke_signed(
-            &solana_program::system_instruction::transfer(
-                &self.escrow.key(),
-                &self.lender.key(),
-                actual_payment,
-            ),
-            &[
-                self.escrow.to_account_info().clone(),
-                self.lender.to_account_info().clone(),
-                self.system_program.to_account_info().clone(),
-            ],
-            &[],
-        )?;
-
         // Step 4: Refund the remaining balance to the client
         let refund_amount = escrow.locked_amount - actual_payment;
-        if refund_amount > 0 {
-            solana_program::program::invoke_signed(
-                &solana_program::system_instruction::transfer(
-                    &self.escrow.key(),
-                    &self.client.key(),
-                    refund_amount,
-                ),
-                &[
-                    self.escrow.to_account_info().clone(),
-                    self.client.to_account_info().clone(),
-                    self.system_program.to_account_info().clone(),
-                ],
-                &[],
-            )?;
-        }
+
+        let client_account_info = &mut self.client.to_account_info();
+        let lender_account_info = &mut self.lender.to_account_info();
+        let escrow_account_info = &mut self.escrow.to_account_info();
+
+        let mut escrow_lamports = escrow_account_info.try_borrow_mut_lamports()?;
+        let mut lender_lamports = lender_account_info.try_borrow_mut_lamports()?;
+        let mut client_lamports = client_account_info.try_borrow_mut_lamports()?;
+
+        **escrow_lamports -= refund_amount + actual_payment;
+        **lender_lamports += actual_payment;
+        **client_lamports += refund_amount;
+        // Step 3: Transfer the due payment to the lender (server)
+        // solana_program::program::invoke_signed(
+        //     &solana_program::system_instruction::transfer(
+        //         &self.escrow.key(),
+        //         &self.lender.key(),
+        //         actual_payment,
+        //     ),
+        //     &[
+        //         self.escrow.to_account_info().clone(),
+        //         self.lender.to_account_info().clone(),
+        //         self.system_program.to_account_info().clone(),
+        //     ],
+        //     &[],
+        // )?;
+
+        // if refund_amount > 0 {
+        //     solana_program::program::invoke_signed(
+        //         &solana_program::system_instruction::transfer(
+        //             &self.escrow.key(),
+        //             &self.client.key(),
+        //             refund_amount,
+        //         ),
+        //         &[
+        //             self.escrow.to_account_info().clone(),
+        //             self.client.to_account_info().clone(),
+        //             self.system_program.to_account_info().clone(),
+        //         ],
+        //         &[],
+        //     )?;
+        // }
 
         Ok(())
     }

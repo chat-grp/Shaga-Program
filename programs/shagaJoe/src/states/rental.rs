@@ -12,7 +12,7 @@ pub struct Rental {
     pub rent_amount: u64,
     pub rental_start_time: u64,
     pub rental_termination_time: u64,
-    pub rental_clockwork_thread_id: Pubkey,
+    pub rental_clockwork_thread: Pubkey,
 }
 
 impl Default for Rental {
@@ -23,7 +23,7 @@ impl Default for Rental {
             rent_amount: 0,
             rental_start_time: 0,
             rental_termination_time: 0,
-            rental_clockwork_thread_id: Pubkey::default(),
+            rental_clockwork_thread: Pubkey::default(),
         }
     }
 }
@@ -36,14 +36,14 @@ impl Rental {
         rent_amount: u64,
         rental_start_time: u64,
         rental_termination_time: u64,
-        rental_clockwork_thread_id: Pubkey,
+        rental_clockwork_thread: Pubkey,
     ) {
         self.client = client;
         self.affair = affair;
         self.rent_amount = rent_amount;
         self.rental_start_time = rental_start_time;
         self.rental_termination_time = rental_termination_time;
-        self.rental_clockwork_thread_id = rental_clockwork_thread_id;
+        self.rental_clockwork_thread = rental_clockwork_thread;
     }
 
     pub fn pda(affair: Pubkey, client: Pubkey) -> (Pubkey, u8) {

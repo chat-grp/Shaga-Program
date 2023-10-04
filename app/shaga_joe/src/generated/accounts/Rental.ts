@@ -20,7 +20,7 @@ export type RentalArgs = {
   rentAmount: beet.bignum
   rentalStartTime: beet.bignum
   rentalTerminationTime: beet.bignum
-  rentalClockworkThreadId: web3.PublicKey
+  rentalClockworkThread: web3.PublicKey
 }
 
 export const rentalDiscriminator = [121, 83, 229, 235, 73, 50, 143, 184]
@@ -38,7 +38,7 @@ export class Rental implements RentalArgs {
     readonly rentAmount: beet.bignum,
     readonly rentalStartTime: beet.bignum,
     readonly rentalTerminationTime: beet.bignum,
-    readonly rentalClockworkThreadId: web3.PublicKey
+    readonly rentalClockworkThread: web3.PublicKey
   ) {}
 
   /**
@@ -51,7 +51,7 @@ export class Rental implements RentalArgs {
       args.rentAmount,
       args.rentalStartTime,
       args.rentalTerminationTime,
-      args.rentalClockworkThreadId
+      args.rentalClockworkThread
     )
   }
 
@@ -193,7 +193,7 @@ export class Rental implements RentalArgs {
         }
         return x
       })(),
-      rentalClockworkThreadId: this.rentalClockworkThreadId.toBase58(),
+      rentalClockworkThread: this.rentalClockworkThread.toBase58(),
     }
   }
 }
@@ -215,7 +215,7 @@ export const rentalBeet = new beet.BeetStruct<
     ['rentAmount', beet.u64],
     ['rentalStartTime', beet.u64],
     ['rentalTerminationTime', beet.u64],
-    ['rentalClockworkThreadId', beetSolana.publicKey],
+    ['rentalClockworkThread', beetSolana.publicKey],
   ],
   Rental.fromArgs,
   'Rental'

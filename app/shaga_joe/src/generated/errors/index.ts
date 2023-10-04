@@ -308,6 +308,101 @@ createErrorFromNameLookup.set(
 )
 
 /**
+ * InvalidSigner: 'Invalid Signer'
+ *
+ * @category Errors
+ * @category generated
+ */
+export class InvalidSignerError extends Error {
+  readonly code: number = 0x177d
+  readonly name: string = 'InvalidSigner'
+  constructor() {
+    super('Invalid Signer')
+    if (typeof Error.captureStackTrace === 'function') {
+      Error.captureStackTrace(this, InvalidSignerError)
+    }
+  }
+}
+
+createErrorFromCodeLookup.set(0x177d, () => new InvalidSignerError())
+createErrorFromNameLookup.set('InvalidSigner', () => new InvalidSignerError())
+
+/**
+ * InvalidTerminationInstruction: 'Invalid Termination Instruction.'
+ *
+ * @category Errors
+ * @category generated
+ */
+export class InvalidTerminationInstructionError extends Error {
+  readonly code: number = 0x177e
+  readonly name: string = 'InvalidTerminationInstruction'
+  constructor() {
+    super('Invalid Termination Instruction.')
+    if (typeof Error.captureStackTrace === 'function') {
+      Error.captureStackTrace(this, InvalidTerminationInstructionError)
+    }
+  }
+}
+
+createErrorFromCodeLookup.set(
+  0x177e,
+  () => new InvalidTerminationInstructionError()
+)
+createErrorFromNameLookup.set(
+  'InvalidTerminationInstruction',
+  () => new InvalidTerminationInstructionError()
+)
+
+/**
+ * InvalidRentalClockworkKey: 'Rental Clockwork Key Mismatch.'
+ *
+ * @category Errors
+ * @category generated
+ */
+export class InvalidRentalClockworkKeyError extends Error {
+  readonly code: number = 0x177f
+  readonly name: string = 'InvalidRentalClockworkKey'
+  constructor() {
+    super('Rental Clockwork Key Mismatch.')
+    if (typeof Error.captureStackTrace === 'function') {
+      Error.captureStackTrace(this, InvalidRentalClockworkKeyError)
+    }
+  }
+}
+
+createErrorFromCodeLookup.set(
+  0x177f,
+  () => new InvalidRentalClockworkKeyError()
+)
+createErrorFromNameLookup.set(
+  'InvalidRentalClockworkKey',
+  () => new InvalidRentalClockworkKeyError()
+)
+
+/**
+ * NumericalOverflow: 'Numerical Overflow.'
+ *
+ * @category Errors
+ * @category generated
+ */
+export class NumericalOverflowError extends Error {
+  readonly code: number = 0x1780
+  readonly name: string = 'NumericalOverflow'
+  constructor() {
+    super('Numerical Overflow.')
+    if (typeof Error.captureStackTrace === 'function') {
+      Error.captureStackTrace(this, NumericalOverflowError)
+    }
+  }
+}
+
+createErrorFromCodeLookup.set(0x1780, () => new NumericalOverflowError())
+createErrorFromNameLookup.set(
+  'NumericalOverflow',
+  () => new NumericalOverflowError()
+)
+
+/**
  * Attempts to resolve a custom program error from the provided error code.
  * @category Errors
  * @category generated

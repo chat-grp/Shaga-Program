@@ -26,7 +26,7 @@ upgrade_shaga:
 	anchor upgrade --program-id 9SwYZxTQUYruFSHYeTqrtB5pTtuGJEGksh7ufpNS1YK5 --provider.cluster devnet --provider.wallet app/test_keypairs/0.json target/deploy/shaga_joe.so
 
 solita_build:
-	cd app/shaga_joe && yarn solita && cd ..
+	cd app/shaga_joe && yarn node_solita && cd ..
 
 transfer_to_test_keypairs:
 	# solana transfer app/test_keypairs/0.json 20

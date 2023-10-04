@@ -59,11 +59,11 @@ pub struct Initialize<'info> {
     pub payer: Signer<'info>,
     #[account(init, payer=payer, space = AffairsList::size(), seeds = [SEED_AFFAIR_LIST], bump)]
     pub affairs_list: Account<'info, AffairsList>,
-    #[account(init, payer=payer, space = Escrow::INIT_SPACE, seeds = [SEED_ESCROW], bump)]
+    #[account(init, payer=payer, space = Escrow::size(), seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,
     /// The pda that will own and manage threads.
-    /// CHECK: safe because it is creating an predetermined account
-    #[account(init, payer=payer, space = Escrow::INIT_SPACE, seeds = [SEED_AUTHORITY_THREAD], bump)]
+    /// CHECK: safe because it is creating an predetermined signer
+    #[account(init, payer=payer, space = 1, seeds = [SEED_AUTHORITY_THREAD], bump)]
     pub thread_authority: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }

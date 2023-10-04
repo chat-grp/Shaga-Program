@@ -1,11 +1,13 @@
 use crate::{errors::*, seeds::*, states::*};
 use anchor_lang::prelude::*;
+use clockwork_sdk::state::Thread;
 
 #[derive(PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub enum RentalTerminationAuthority {
     Clockwork,
     Client,
-    TerminateAffair,
+    // handled in terminate_affair instructions
+    // TerminateAffair,
 }
 
 #[derive(Accounts)]
@@ -16,13 +18,14 @@ pub struct EndRentalAccounts<'info> {
     /// CHECK: checked below
     #[account(mut)]
     pub client: UncheckedAccount<'info>,
+    /// CHECK: checked below
     #[account(seeds = [SEED_AUTHORITY_THREAD], bump)]
-    pub thread_authority: SystemAccount<'info>,
-    #[account(mut)]
+    pub thread_authority: AccountInfo<'info>,
+    #[account(mut, seeds = [SEED_LENDER, affair.authority.as_ref()], bump)]
     pub lender: Account<'info, Lender>,
-    #[account(mut)]
+    #[account(mut, seeds = [SEED_AFFAIR, affair.authority.as_ref()], bump)]
     pub affair: Account<'info, Affair>,
-    #[account(mut)]
+    #[account(mut, seeds = [SEED_AFFAIR_LIST], bump)]
     pub affairs_list: Account<'info, AffairsList>,
     #[account(mut, seeds = [SEED_ESCROW, lender.key().as_ref(), client.key().as_ref()], bump)]
     pub escrow: Account<'info, Escrow>,
@@ -41,16 +44,27 @@ pub fn handle_ending_rental(
     let affair_account = &mut ctx.accounts.affair;
     let escrow_account = &mut ctx.accounts.escrow;
     let rental_account = &mut ctx.accounts.rental;
-    let system_program = &ctx.accounts.system_program;
     let affairs_list_account = &mut ctx.accounts.affairs_list;
     let lender_account = &ctx.accounts.lender;
     let client = &ctx.accounts.client;
     let signer = &ctx.accounts.signer;
+    let thread_authority = &ctx.accounts.thread_authority;
 
     // check if signer is the client
-    if client.key() != signer.key() {
+    if client.key() != signer.key() || termination_by == RentalTerminationAuthority::Clockwork {
         // check if signer is thread. if it is not then fail early.
-        if rental_account.rental_clockwork_thread_id != signer.key() {
+        // serialize the signer into a thread or fail.
+        let thread_data = &mut &**signer.try_borrow_data()?;
+        let thread_signer_result = Thread::try_deserialize(thread_data);
+        let thread_signer = if thread_signer_result.is_ok() {
+            thread_signer_result.unwrap()
+        } else {
+            msg!("Could not deserialize clockwork thread termination key.");
+            return Err(ShagaErrorCode::InvalidSigner.into());
+        };
+        if rental_account.rental_clockwork_thread != signer.key()
+            && !thread_signer.authority.eq(&thread_authority.key())
+        {
             msg!("Invalid clockwork thread rental termination key.");
             return Err(ShagaErrorCode::InvalidTerminationTime.into());
         }
@@ -65,52 +79,67 @@ pub fn handle_ending_rental(
     let current_time = clock.unix_timestamp as u64;
     let actual_time = (current_time - rental_account.rental_start_time) / 3600;
     let actual_payment = actual_time * rental_account.rent_amount;
+    // Step 4: Refund the remaining balance to the client
+    let refund_amount: u64 = escrow_account.locked_amount - actual_payment;
+
+    let client_account_info = &mut client.to_account_info();
+    let lender_account_info = &mut lender_account.to_account_info();
+    let escrow_account_info = &mut escrow_account.to_account_info();
+
+    let mut escrow_lamports = escrow_account_info.try_borrow_mut_lamports()?;
+    let mut lender_lamports = lender_account_info.try_borrow_mut_lamports()?;
+    let mut client_lamports = client_account_info.try_borrow_mut_lamports()?;
+
+    **escrow_lamports -= refund_amount + actual_payment;
+    **lender_lamports += actual_payment;
+    **client_lamports += refund_amount;
 
     // Step 3: Transfer the due payment to the lender (server)
-    solana_program::program::invoke_signed(
-        &solana_program::system_instruction::transfer(
-            &escrow_account.key(),
-            &lender_account.key(),
-            actual_payment,
-        ),
-        &[
-            escrow_account.to_account_info().clone(),
-            lender_account.to_account_info().clone(),
-            system_program.to_account_info().clone(),
-        ],
-        &[], // TODO:
-    )?;
+    // solana_program::program::invoke_signed(
+    //     &solana_program::system_instruction::transfer(
+    //         &escrow_account.key(),
+    //         &lender_account.key(),
+    //         actual_payment,
+    //     ),
+    //     &[
+    //         escrow_account.to_account_info().clone(),
+    //         lender_account.to_account_info().clone(),
+    //         system_program.to_account_info().clone(),
+    //     ],
+    //     &[], // TODO:
+    // )?;
 
-    // Step 4: Refund the remaining balance to the client
-    let refund_amount = escrow_account.locked_amount - actual_payment;
-    if refund_amount > 0 {
-        solana_program::program::invoke_signed(
-            &solana_program::system_instruction::transfer(
-                &escrow_account.key(),
-                &client.key(),
-                refund_amount,
-            ),
-            &[
-                escrow_account.to_account_info().clone(),
-                client.to_account_info().clone(),
-                system_program.to_account_info().clone(),
-            ],
-            &[], // TODO:
-        )?;
-    }
+    // if refund_amount > 0 {
+    //     solana_program::program::invoke_signed(
+    //         &solana_program::system_instruction::transfer(
+    //             &escrow_account.key(),
+    //             &client.key(),
+    //             refund_amount,
+    //         ),
+    //         &[
+    //             escrow_account.to_account_info().clone(),
+    //             client.to_account_info().clone(),
+    //             system_program.to_account_info().clone(),
+    //         ],
+    //         &[], // TODO:
+    //     )?;
+    // }
 
     // Step 5: Update lender karma points based on who terminated the affair
     let lender_account = &mut ctx.accounts.lender;
-    match termination_by {
-        RentalTerminationAuthority::Clockwork | RentalTerminationAuthority::Client => {
-            lender_account.give_thumbs_up()
-        }
-        RentalTerminationAuthority::TerminateAffair => lender_account.give_thumbs_down(),
-    }
+    lender_account.give_thumbs_up();
+    // RentalTerminationAuthority::TerminateAffair is handled in terminate_affair insturction
+    // match termination_by {
+    //     RentalTerminationAuthority::Clockwork | RentalTerminationAuthority::Client => {
+    //         lender_account.give_thumbs_up()
+    //     }
+    //     RentalTerminationAuthority::TerminateAffair => lender_account.give_thumbs_down(),
+    // }
 
     // Step 6: Update affair state to indicate it's Available
     affair_account.affair_state = AffairState::Available;
     affair_account.rental = None;
+    affair_account.client = Pubkey::default();
 
     // Step 7: Add Affair Back to Affair List
     let affair_pubkey = affair_account.key();

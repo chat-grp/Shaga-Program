@@ -28,4 +28,12 @@ pub enum ShagaErrorCode {
     InvalidRentalContext,
     #[msg("Only registered lenders can create affairs")]
     UnauthorizedAffairCreation,
+    #[msg("Invalid Signer")]
+    InvalidSigner,
+    #[msg("Invalid Termination Instruction.")]
+    InvalidTerminationInstruction,
+    #[msg("Rental Clockwork Key Mismatch.")]
+    InvalidRentalClockworkKey,
+    #[msg("Numerical Overflow.")]
+    NumericalOverflow,
 }
