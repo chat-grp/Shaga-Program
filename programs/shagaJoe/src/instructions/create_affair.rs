@@ -2,7 +2,7 @@ use crate::{errors::*, seeds::*, states::*, ID};
 use anchor_lang::prelude::*;
 use anchor_lang::InstructionData;
 use clockwork_sdk::cpi::thread_create;
-use solana_program::{instruction::Instruction, native_token::LAMPORTS_PER_SOL};
+use solana_program::instruction::Instruction;
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct AffairPayload {
@@ -10,7 +10,7 @@ pub struct AffairPayload {
     pub cpu_name: [u8; 64],
     pub gpu_name: [u8; 64],
     pub total_ram_mb: u32,
-    pub usdc_per_hour: u32,
+    pub sol_per_hour: u64,
     pub affair_termination_time: u64,
 }
 
@@ -21,7 +21,7 @@ impl Default for AffairPayload {
             cpu_name: [0u8; 64],
             gpu_name: [0u8; 64],
             total_ram_mb: 0,
-            usdc_per_hour: 0,
+            sol_per_hour: 0,
             affair_termination_time: 0,
         }
     }
@@ -70,7 +70,7 @@ pub fn handle_create_affair(
     affair_account.cpu_name = payload.cpu_name;
     affair_account.gpu_name = payload.gpu_name;
     affair_account.total_ram_mb = payload.total_ram_mb;
-    affair_account.usdc_per_hour = payload.usdc_per_hour;
+    affair_account.sol_per_hour = payload.sol_per_hour;
     affair_account.affair_termination_time = payload.affair_termination_time as u64;
     affair_account.affair_state = AffairState::Available;
 

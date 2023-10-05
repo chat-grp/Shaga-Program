@@ -75,12 +75,29 @@ impl<'info> TerminateAffairAccounts<'info> {
         let current_time = clock.unix_timestamp as u64;
 
         let rental = Rental::deserialize_data(&self.rental.data.borrow_mut())?;
-        let escrow = Escrow::deserialize_data(&self.escrow.data.borrow_mut())?;
+        let escrow = &mut Escrow::deserialize_data(&self.escrow.data.borrow_mut())?;
 
-        let actual_time = (current_time - rental.rental_start_time) / 3600;
-        let actual_payment = actual_time * rental.rent_amount;
-        // Step 4: Refund the remaining balance to the client
-        let refund_amount = escrow.locked_amount - actual_payment;
+        // let actual_time = (current_time - rental.rental_start_time) / 3600;
+        // let actual_payment = actual_time * rental.rent_amount;
+        // // Step 4: Refund the remaining balance to the client
+        // let refund_amount = escrow.locked_amount - actual_payment;
+
+        // using a factor of 100:
+        let scaling_factor = 100_u64;
+
+        let actual_time = (current_time as f64 - rental.rental_start_time as f64) / 3600.0;
+        let scaled_rental_duration = (actual_time * scaling_factor as f64) as u64;
+        let actual_payment = scaled_rental_duration
+            .checked_mul(rental.rent_amount)
+            .ok_or(ShagaErrorCode::NumericalOverflow)?
+            .checked_div(scaling_factor)
+            .ok_or(ShagaErrorCode::NumericalOverflow)?;
+        let refund_amount = escrow
+            .locked_amount
+            .checked_sub(actual_payment)
+            .ok_or(ShagaErrorCode::NumericalOverflow)?
+            .checked_div(scaling_factor)
+            .ok_or(ShagaErrorCode::NumericalOverflow)?;
 
         let client_account_info = &mut self.client.to_account_info();
         let lender_account_info = &mut self.lender.to_account_info();
@@ -93,6 +110,8 @@ impl<'info> TerminateAffairAccounts<'info> {
         **escrow_lamports -= refund_amount + actual_payment;
         **lender_lamports += actual_payment;
         **client_lamports += refund_amount;
+
+        escrow.locked_amount = 0;
         // Step 3: Transfer the due payment to the lender (server)
         // solana_program::program::invoke_signed(
         //     &solana_program::system_instruction::transfer(
@@ -147,9 +166,27 @@ pub fn handle_affair_termination(ctx: Context<TerminateAffairAccounts>) -> Resul
         // Step 1: Calculate the actual time server was used (in hours)
         let clock = Clock::get()?;
         let current_time = clock.unix_timestamp as u64;
-        let actual_time = (current_time - affair_account.active_rental_start_time) / 3600;
-        let actual_payment = actual_time * affair_account.usdc_per_hour as u64;
-        let refund_amount = affair_account.due_rent_amount - actual_payment;
+        // let actual_time = (current_time - affair_account.active_rental_start_time) / 3600;
+        // let actual_payment = actual_time * affair_account.sol_per_hour as u64;
+        // let refund_amount = affair_account.due_rent_amount - actual_payment;
+
+        let scaling_factor = 100_u64;
+
+        let actual_time =
+            (current_time as f64 - affair_account.active_rental_start_time as f64) / 3600.0;
+        let scaled_rental_duration = (actual_time * scaling_factor as f64) as u64;
+
+        let actual_payment = scaled_rental_duration
+            .checked_mul(affair_account.sol_per_hour)
+            .ok_or(ShagaErrorCode::NumericalOverflow)?
+            .checked_div(scaling_factor)
+            .ok_or(ShagaErrorCode::NumericalOverflow)?;
+        let refund_amount = affair_account
+            .due_rent_amount
+            .checked_sub(actual_payment)
+            .ok_or(ShagaErrorCode::NumericalOverflow)?
+            .checked_div(scaling_factor)
+            .ok_or(ShagaErrorCode::NumericalOverflow)?;
 
         // Step 2: Transfer the due payment to the lender (server)
         // solana_program::program::invoke(

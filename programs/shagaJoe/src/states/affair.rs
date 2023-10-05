@@ -26,7 +26,8 @@ pub struct Affair {
     pub cpu_name: [u8; 64],
     pub gpu_name: [u8; 64],
     pub total_ram_mb: u32,
-    pub usdc_per_hour: u32,
+    // in LAMPORTS_PER_SOL
+    pub sol_per_hour: u64,
     pub affair_state: AffairState,
     pub affair_termination_time: u64,
     pub active_rental_start_time: u64,
@@ -44,7 +45,7 @@ impl Default for Affair {
             cpu_name: [0u8; 64],
             gpu_name: [0u8; 64],
             total_ram_mb: 0,
-            usdc_per_hour: 0,
+            sol_per_hour: 0,
             affair_state: AffairState::default(),
             affair_termination_time: 0,
             active_rental_start_time: 0,

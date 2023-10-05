@@ -73,20 +73,28 @@ pub fn handle_starting_rental(
     }
 
     // Step 4: Calculate rent cost & fee amount
+    // using a factor of 100:
+    let scaling_factor = 100_u64;
+
     let rental_duration_seconds = rental_termination_time
         .checked_sub(current_time)
         .ok_or(ShagaErrorCode::NumericalOverflow)?;
 
-    let rental_duration_hours = rental_duration_seconds
-        .checked_div(3600)
+    let rental_duration_hours_float = rental_duration_seconds as f64 / 3600.0;
+    let scaled_rental_duration = (rental_duration_hours_float * scaling_factor as f64) as u64;
+
+    let scaled_sol_per_hour = affair_account.sol_per_hour as u64 * scaling_factor;
+
+    let rent_amount = scaled_rental_duration
+        .checked_mul(scaled_sol_per_hour as u64)
         .ok_or(ShagaErrorCode::NumericalOverflow)?;
 
-    let rent_amount = rental_duration_hours
-        .checked_mul(affair_account.usdc_per_hour as u64)
+    let rent_amount_final = rent_amount
+        .checked_div(scaling_factor)
         .ok_or(ShagaErrorCode::NumericalOverflow)?;
 
     let fee_amount = 1_u128
-        .checked_mul(rent_amount as u128)
+        .checked_mul(rent_amount_final as u128)
         .ok_or(ShagaErrorCode::NumericalOverflow)?
         .checked_div(100)
         .ok_or(ShagaErrorCode::NumericalOverflow)? as u64;

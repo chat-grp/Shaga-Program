@@ -5,7 +5,7 @@ git:
 	git commit -m "$m"
 	git push -u origin
 
-pre_git: build_program deploy_shaga
+pre_git: build_program deploy_shaga upgrade_idl_shaga
 
 build_program:
 	anchor build

@@ -77,10 +77,28 @@ pub fn handle_ending_rental(
     // Step 1: Calculate the actual time server was used (in hours)
     let clock = Clock::get()?;
     let current_time = clock.unix_timestamp as u64;
-    let actual_time = (current_time - rental_account.rental_start_time) / 3600;
-    let actual_payment = actual_time * rental_account.rent_amount;
+    // let actual_time = (current_time - rental_account.rental_start_time) / 3600;
+    // let actual_payment = actual_time * rental_account.rent_amount;
     // Step 4: Refund the remaining balance to the client
-    let refund_amount: u64 = escrow_account.locked_amount - actual_payment;
+    // let refund_amount: u64 = escrow_account.locked_amount - actual_payment;
+
+    let scaling_factor = 100_u64;
+
+    let actual_time =
+        (current_time as f64 - affair_account.active_rental_start_time as f64) / 3600.0;
+    let scaled_rental_duration = (actual_time * scaling_factor as f64) as u64;
+
+    let actual_payment = scaled_rental_duration
+        .checked_mul(affair_account.sol_per_hour)
+        .ok_or(ShagaErrorCode::NumericalOverflow)?
+        .checked_div(scaling_factor)
+        .ok_or(ShagaErrorCode::NumericalOverflow)?;
+    let refund_amount = affair_account
+        .due_rent_amount
+        .checked_sub(actual_payment)
+        .ok_or(ShagaErrorCode::NumericalOverflow)?
+        .checked_div(scaling_factor)
+        .ok_or(ShagaErrorCode::NumericalOverflow)?;
 
     let client_account_info = &mut client.to_account_info();
     let lender_account_info = &mut lender_account.to_account_info();
@@ -144,6 +162,7 @@ pub fn handle_ending_rental(
     // Step 7: Add Affair Back to Affair List
     let affair_pubkey = affair_account.key();
     affairs_list_account.register_affair(affair_pubkey)?;
+    escrow_account.locked_amount = 0;
 
     /* TODO:
     // Step 8: Transfer Remaining Lamports to Vault and Zero Out Rental Account

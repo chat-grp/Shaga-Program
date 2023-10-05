@@ -23,7 +23,7 @@ export type AffairArgs = {
   cpuName: number[] /* size: 64 */
   gpuName: number[] /* size: 64 */
   totalRamMb: number
-  usdcPerHour: number
+  solPerHour: beet.bignum
   affairState: AffairState
   affairTerminationTime: beet.bignum
   activeRentalStartTime: beet.bignum
@@ -47,7 +47,7 @@ export class Affair implements AffairArgs {
     readonly cpuName: number[] /* size: 64 */,
     readonly gpuName: number[] /* size: 64 */,
     readonly totalRamMb: number,
-    readonly usdcPerHour: number,
+    readonly solPerHour: beet.bignum,
     readonly affairState: AffairState,
     readonly affairTerminationTime: beet.bignum,
     readonly activeRentalStartTime: beet.bignum,
@@ -66,7 +66,7 @@ export class Affair implements AffairArgs {
       args.cpuName,
       args.gpuName,
       args.totalRamMb,
-      args.usdcPerHour,
+      args.solPerHour,
       args.affairState,
       args.affairTerminationTime,
       args.activeRentalStartTime,
@@ -186,7 +186,17 @@ export class Affair implements AffairArgs {
       cpuName: this.cpuName,
       gpuName: this.gpuName,
       totalRamMb: this.totalRamMb,
-      usdcPerHour: this.usdcPerHour,
+      solPerHour: (() => {
+        const x = <{ toNumber: () => number }>this.solPerHour
+        if (typeof x.toNumber === 'function') {
+          try {
+            return x.toNumber()
+          } catch (_) {
+            return x
+          }
+        }
+        return x
+      })(),
       affairState: 'AffairState.' + AffairState[this.affairState],
       affairTerminationTime: (() => {
         const x = <{ toNumber: () => number }>this.affairTerminationTime
@@ -244,7 +254,7 @@ export const affairBeet = new beet.FixableBeetStruct<
     ['cpuName', beet.uniformFixedSizeArray(beet.u8, 64)],
     ['gpuName', beet.uniformFixedSizeArray(beet.u8, 64)],
     ['totalRamMb', beet.u32],
-    ['usdcPerHour', beet.u32],
+    ['solPerHour', beet.u64],
     ['affairState', affairStateBeet],
     ['affairTerminationTime', beet.u64],
     ['activeRentalStartTime', beet.u64],

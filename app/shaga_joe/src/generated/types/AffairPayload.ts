@@ -11,7 +11,7 @@ export type AffairPayload = {
   cpuName: number[] /* size: 64 */
   gpuName: number[] /* size: 64 */
   totalRamMb: number
-  usdcPerHour: number
+  solPerHour: beet.bignum
   affairTerminationTime: beet.bignum
 }
 
@@ -25,7 +25,7 @@ export const affairPayloadBeet = new beet.BeetArgsStruct<AffairPayload>(
     ['cpuName', beet.uniformFixedSizeArray(beet.u8, 64)],
     ['gpuName', beet.uniformFixedSizeArray(beet.u8, 64)],
     ['totalRamMb', beet.u32],
-    ['usdcPerHour', beet.u32],
+    ['solPerHour', beet.u64],
     ['affairTerminationTime', beet.u64],
   ],
   'AffairPayload'

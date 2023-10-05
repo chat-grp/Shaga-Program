@@ -410,8 +410,8 @@
             "type": "u32"
           },
           {
-            "name": "usdcPerHour",
-            "type": "u32"
+            "name": "solPerHour",
+            "type": "u64"
           },
           {
             "name": "affairState",
@@ -537,8 +537,8 @@
             "type": "u32"
           },
           {
-            "name": "usdcPerHour",
-            "type": "u32"
+            "name": "solPerHour",
+            "type": "u64"
           },
           {
             "name": "affairTerminationTime",
