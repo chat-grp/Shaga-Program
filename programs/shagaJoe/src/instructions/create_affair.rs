@@ -33,6 +33,8 @@ pub struct CreateAffairAccounts<'info> {
     pub authority: Signer<'info>,
     #[account(init, payer = authority, space = Affair::size(), seeds = [SEED_AFFAIR, authority.key().as_ref()], bump)]
     pub affair: Account<'info, Affair>,
+    #[account(mut, has_one = authority @ ShagaErrorCode::UnauthorizedAffairCreation, seeds = [SEED_LENDER, authority.key().as_ref()], bump)]
+    pub lender: Account<'info, Lender>,
     #[account(mut, seeds = [SEED_AFFAIR_LIST], bump)]
     pub affairs_list: Account<'info, AffairsList>,
     /// CHECK: checked below
@@ -61,6 +63,7 @@ pub fn handle_create_affair(
     let thread_authority = &ctx.accounts.thread_authority;
     let authority = &ctx.accounts.authority;
     let vault = &ctx.accounts.vault;
+    let lender = &ctx.accounts.lender;
     let system_program = &ctx.accounts.system_program;
     let clockwork_program = &ctx.accounts.clockwork_program;
 
@@ -81,6 +84,8 @@ pub fn handle_create_affair(
         program_id: ID,
         accounts: crate::__client_accounts_terminate_vacant_affair_accounts::TerminateVacantAffairAccounts {
             signer: affair_clockwork_thread.key(),
+            authority: authority.key(),
+            lender: lender.key(),
             thread_authority: thread_authority.key(),
             affair: affair_account.key(),
             affairs_list: affairs_list_account.key(),

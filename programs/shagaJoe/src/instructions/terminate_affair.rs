@@ -1,7 +1,7 @@
 use crate::{errors::*, seeds::*, states::*};
 use anchor_lang::prelude::*;
 
-use solana_program::clock::Clock;
+use solana_program::{clock::Clock, native_token::Sol};
 
 #[derive(Accounts)]
 pub struct TerminateAffairAccounts<'info> {
@@ -16,253 +16,106 @@ pub struct TerminateAffairAccounts<'info> {
     pub affair: Account<'info, Affair>,
     #[account(mut, seeds = [SEED_AFFAIR_LIST], bump)]
     pub affairs_list: Account<'info, AffairsList>,
-    /// CHECK: checked below. possibly none.
     #[account(mut, seeds = [SEED_ESCROW, lender.key().as_ref(), client.key().as_ref()], bump)]
-    pub escrow: AccountInfo<'info>, // Account<'info, Escrow>,
-    /// CHECK: checked below. possibly none.
+    pub escrow: Account<'info, Escrow>,
     #[account(mut, seeds = [SEED_RENTAL, lender.key().as_ref(), client.key().as_ref()], bump)]
-    pub rental: AccountInfo<'info>,
+    pub rental: Account<'info, Rental>,
     #[account(mut, seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,
     pub system_program: Program<'info, System>,
 }
 
-impl<'info> TerminateAffairAccounts<'info> {
-    // fn validate_termination_conditions(
-    //     &self,
-    //     termination_by: &AffairTerminationAuthority,
-    // ) -> Result<()> {
-    //     let current_time = Clock::get()?.unix_timestamp as u64;
-
-    //     match termination_by {
-    //         AffairTerminationAuthority::Clockwork => {
-    //             if current_time < self.affair.affair_termination_time {
-    //                 msg!("Affair cannot be terminated before the scheduled time.");
-    //                 return Err(ShagaErrorCode::InvalidTerminationTime.into());
-    //             }
-
-    //             if self.affair.rental.is_some() {
-    //                 msg!("Affair cannot be terminated by Clockwork if there's an active rental.");
-    //                 return Err(ShagaErrorCode::InvalidTerminationTime.into());
-    //             }
-
-    //             if let TriggerContext::Timestamp { started_at } = self
-    //                 .affair_clockwork_thread
-    //                 .exec_context
-    //                 .unwrap()
-    //                 .trigger_context
-    //             {
-    //                 if current_time < started_at as u64 {
-    //                     msg!("Clockwork Thread has not reached the trigger timestamp yet.");
-    //                     return Err(ShagaErrorCode::InvalidTerminationTime.into());
-    //                 }
-    //             } else {
-    //                 msg!("Invalid trigger context for Clockwork Thread.");
-    //                 return Err(ShagaErrorCode::InvalidTerminationTime.into());
-    //             }
-    //         }
-    //         AffairTerminationAuthority::Lender => {
-    //             // The Server (Lender) is allowed to terminate the affair regardless of the affair_termination_time
-    //         }
-    //     }
-
-    //     Ok(())
-    // }
-    /// ending rental should only be handled if there is a rental
-    fn handle_ending_rental(&self) -> Result<()> {
-        // Step 1: Calculate the actual time server was used (in hours)
-        let clock = Clock::get()?;
-        let current_time = clock.unix_timestamp as u64;
-
-        let rental = Rental::deserialize_data(&self.rental.data.borrow_mut())?;
-        let escrow = &mut Escrow::deserialize_data(&self.escrow.data.borrow_mut())?;
-
-        // let actual_time = (current_time - rental.rental_start_time) / 3600;
-        // let actual_payment = actual_time * rental.rent_amount;
-        // // Step 4: Refund the remaining balance to the client
-        // let refund_amount = escrow.locked_amount - actual_payment;
-
-        // using a factor of 100:
-        let scaling_factor = 100_u64;
-
-        let actual_time = (current_time as f64 - rental.rental_start_time as f64) / 3600.0;
-        let scaled_rental_duration = (actual_time * scaling_factor as f64) as u64;
-        let actual_payment = scaled_rental_duration
-            .checked_mul(rental.rent_amount)
-            .ok_or(ShagaErrorCode::NumericalOverflow)?
-            .checked_div(scaling_factor)
-            .ok_or(ShagaErrorCode::NumericalOverflow)?;
-        let refund_amount = escrow
-            .locked_amount
-            .checked_sub(actual_payment)
-            .ok_or(ShagaErrorCode::NumericalOverflow)?
-            .checked_div(scaling_factor)
-            .ok_or(ShagaErrorCode::NumericalOverflow)?;
-
-        let client_account_info = &mut self.client.to_account_info();
-        let lender_account_info = &mut self.lender.to_account_info();
-        let escrow_account_info = &mut self.escrow.to_account_info();
-
-        let mut escrow_lamports = escrow_account_info.try_borrow_mut_lamports()?;
-        let mut lender_lamports = lender_account_info.try_borrow_mut_lamports()?;
-        let mut client_lamports = client_account_info.try_borrow_mut_lamports()?;
-
-        **escrow_lamports -= refund_amount + actual_payment;
-        **lender_lamports += actual_payment;
-        **client_lamports += refund_amount;
-
-        escrow.locked_amount = 0;
-        // Step 3: Transfer the due payment to the lender (server)
-        // solana_program::program::invoke_signed(
-        //     &solana_program::system_instruction::transfer(
-        //         &self.escrow.key(),
-        //         &self.lender.key(),
-        //         actual_payment,
-        //     ),
-        //     &[
-        //         self.escrow.to_account_info().clone(),
-        //         self.lender.to_account_info().clone(),
-        //         self.system_program.to_account_info().clone(),
-        //     ],
-        //     &[],
-        // )?;
-
-        // if refund_amount > 0 {
-        //     solana_program::program::invoke_signed(
-        //         &solana_program::system_instruction::transfer(
-        //             &self.escrow.key(),
-        //             &self.client.key(),
-        //             refund_amount,
-        //         ),
-        //         &[
-        //             self.escrow.to_account_info().clone(),
-        //             self.client.to_account_info().clone(),
-        //             self.system_program.to_account_info().clone(),
-        //         ],
-        //         &[],
-        //     )?;
-        // }
-
-        Ok(())
-    }
-}
-
 pub fn handle_affair_termination(ctx: Context<TerminateAffairAccounts>) -> Result<()> {
     let affair_account = &ctx.accounts.affair;
-    let escrow = &ctx.accounts.escrow;
-    let lender = &ctx.accounts.lender;
     let affairs_list_account = &mut ctx.accounts.affairs_list;
-    let vault = &ctx.accounts.vault;
+    let escrow_account = &mut ctx.accounts.escrow;
+    let rental_account = &ctx.accounts.rental;
     let client = &ctx.accounts.client;
+    let authority = &ctx.accounts.authority;
+    let vault = &ctx.accounts.vault;
 
-    // clockwork termination is handled by another instruction
-    // let affair_clockwork_thread = &ctx.accounts.affair_clockwork_thread;
-
-    // Validate termination conditions
-    // ctx.accounts
-    //     .validate_termination_conditions(&termination_by)?;
-
-    if let Some(_active_rental_pubkey) = affair_account.rental {
-        // Step 1: Calculate the actual time server was used (in hours)
-        let clock = Clock::get()?;
-        let current_time = clock.unix_timestamp as u64;
-        // let actual_time = (current_time - affair_account.active_rental_start_time) / 3600;
-        // let actual_payment = actual_time * affair_account.sol_per_hour as u64;
-        // let refund_amount = affair_account.due_rent_amount - actual_payment;
-
-        let scaling_factor = 100_u64;
-
-        let actual_time =
-            (current_time as f64 - affair_account.active_rental_start_time as f64) / 3600.0;
-        let scaled_rental_duration = (actual_time * scaling_factor as f64) as u64;
-
-        let actual_payment = scaled_rental_duration
-            .checked_mul(affair_account.sol_per_hour)
-            .ok_or(ShagaErrorCode::NumericalOverflow)?
-            .checked_div(scaling_factor)
-            .ok_or(ShagaErrorCode::NumericalOverflow)?;
-        let refund_amount = affair_account
-            .due_rent_amount
-            .checked_sub(actual_payment)
-            .ok_or(ShagaErrorCode::NumericalOverflow)?
-            .checked_div(scaling_factor)
-            .ok_or(ShagaErrorCode::NumericalOverflow)?;
-
-        // Step 2: Transfer the due payment to the lender (server)
-        // solana_program::program::invoke(
-        //     &system_instruction::transfer(&escrow.key(), &lender.key(), actual_payment),
-        //     &[
-        //         escrow.to_account_info().clone(),
-        //         lender.to_account_info().clone(),
-        //         system_program.to_account_info().clone(),
-        //     ],
-        // )?;
-
-        // // Step 3: Refund the remaining balance to the client
-        // if refund_amount > 0 {
-        //     solana_program::program::invoke(
-        //         &system_instruction::transfer(&escrow.key(), &client.key(), refund_amount),
-        //         &[
-        //             escrow.to_account_info().clone(),
-        //             client.to_account_info().clone(),
-        //             system_program.to_account_info().clone(),
-        //         ],
-        //     )?;
-        // }
-        let client_account_info = &mut client.to_account_info();
-        let lender_account_info = &mut lender.to_account_info();
-
-        let mut escrow_lamports = escrow.try_borrow_mut_lamports()?;
-        let mut lender_lamports = lender_account_info.try_borrow_mut_lamports()?;
-        let mut client_lamports = client_account_info.try_borrow_mut_lamports()?;
-
-        **escrow_lamports -= refund_amount + actual_payment;
-        **lender_lamports += actual_payment;
-        **client_lamports += refund_amount;
-
-        let lender = &mut ctx.accounts.lender;
-        lender.give_thumbs_down();
+    if affair_account.rental.is_none() {
+        msg!("Invalid instruction there is no ongoing rental.");
+        return Err(ShagaErrorCode::InvalidTerminationInstruction.into());
     }
     // Remove the affair from the list of active affairs
     let affair_pubkey = affair_account.key();
     affairs_list_account.remove_affair(affair_pubkey);
 
-    // handled by anchor
-    affair_account.close(vault.to_account_info())?;
+    let clock = Clock::get()?;
+    let current_time = clock.unix_timestamp as u64;
 
-    if affair_account.rental.is_some() {
-        ctx.accounts.handle_ending_rental()?;
+    if current_time >= rental_account.rental_termination_time {
+        msg!("current time is higher than rental termination time. rental has ended.");
+        let authority_account_info = &mut authority.to_account_info();
+        let escrow_account_info = &mut escrow_account.to_account_info();
+
+        let mut escrow_lamports = escrow_account_info.try_borrow_mut_lamports()?;
+        let mut authority_lamports = authority_account_info.try_borrow_mut_lamports()?;
+        let actual_payment = rental_account.rent_amount;
+        **escrow_lamports -= actual_payment;
+        **authority_lamports += actual_payment;
+
+        msg!("actual_payment: {}", Sol(actual_payment));
+        msg!("authority_lamports: {}", Sol(**authority_lamports));
+        msg!("escrow_lamports: {}", Sol(**escrow_lamports));
+    } else {
+        // using a factor of 100:
+        let scaling_factor = 100_u64;
+
+        let actual_time = (current_time as f64 - rental_account.rental_start_time as f64) / 3600.0;
+        let scaled_rental_duration = (actual_time * scaling_factor as f64) as u64;
+        let actual_payment = scaled_rental_duration
+            .checked_mul(affair_account.sol_per_hour)
+            .ok_or(ShagaErrorCode::NumericalOverflow)?
+            .checked_div(scaling_factor)
+            .ok_or(ShagaErrorCode::NumericalOverflow)?;
+
+        let refund_amount = escrow_account
+            .locked_amount
+            .checked_sub(actual_payment)
+            .ok_or(ShagaErrorCode::NumericalOverflow)?;
+
+        let client_account_info = &mut client.to_account_info();
+        let authority_account_info = &mut authority.to_account_info();
+        let escrow_account_info = &mut escrow_account.to_account_info();
+
+        let mut escrow_lamports = escrow_account_info.try_borrow_mut_lamports()?;
+        let mut authority_lamports = authority_account_info.try_borrow_mut_lamports()?;
+        let mut client_lamports = client_account_info.try_borrow_mut_lamports()?;
+
+        **escrow_lamports -= refund_amount + actual_payment;
+        **authority_lamports += actual_payment;
+        **client_lamports += refund_amount;
+
+        msg!("actual_payment: {}", Sol(actual_payment));
+        msg!("refund_amount: {}", Sol(refund_amount));
+        msg!("escrow_lamports: {}", Sol(**escrow_lamports));
+        msg!("authority_lamports: {}", Sol(**authority_lamports));
+        msg!("client_lamports: {}", Sol(**client_lamports));
+
+        let lender = &mut ctx.accounts.lender;
+        lender.give_thumbs_down();
     }
-    // Update the affair state to Terminated
-    // affair_account.affair_state = AffairState::Unavailable;
 
-    // Transfer remaining lamports to the vault
-    // let remaining_lamports = **ctx
-    //     .accounts
-    //     .affair
-    //     .to_account_info()
-    //     .try_borrow_lamports()?;
-    // solana_program::program::invoke(
-    //     &solana_program::system_instruction::transfer(
-    //         &affair_account.key(),
-    //         &vault.key(),
-    //         remaining_lamports,
-    //     ),
-    //     &[
-    //         affair_account.to_account_info().clone(),
-    //         vault.to_account_info().clone(),
-    //         system_program.to_account_info().clone(),
-    //     ],
-    // )?;
-    // Zero out the data in the affair account
-    // let mut data = ctx
-    //     .accounts
-    //     .affair
-    //     .to_account_info()
-    //     .try_borrow_mut_data()?;
-    // for byte in data.iter_mut() {
-    //     *byte = 0;
-    // }
+    // check if lender has some sols to retrieve.
+    let lender_account_info = &mut ctx.accounts.lender.to_account_info();
+    let lender_rent = Rent::get()?.minimum_balance(lender_account_info.data_len());
+    let lender_balance = lender_account_info.lamports() - lender_rent;
+    if lender_balance > 0 {
+        let authority_account_info = &mut ctx.accounts.authority.to_account_info();
+        let mut authority_lamports = authority_account_info.try_borrow_mut_lamports()?;
+        let mut lender_lamports = lender_account_info.try_borrow_mut_lamports()?;
+
+        **lender_lamports -= lender_balance;
+        **authority_lamports += lender_balance;
+    }
+
+    // since rent ended and we already transfered the total.
+    // we can close these accounts below.
+    affair_account.close(vault.to_account_info())?;
+    escrow_account.close(vault.to_account_info())?;
+    rental_account.close(vault.to_account_info())?;
 
     Ok(())
 }

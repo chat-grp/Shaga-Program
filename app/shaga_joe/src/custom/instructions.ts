@@ -48,6 +48,7 @@ export function createLender(payer: PublicKey) {
 export function createAffair(authority: PublicKey, affairPayload: AffairPayload) {
   const [affair] = findAffair(authority);
   console.log('affair', affair.toBase58())
+  const [lender] = findLender(authority);
   const [affairsList] = findAffairList();
   const [vault] = findVault();
   const [threadAuthority] = findThreadAuthority();
@@ -57,6 +58,7 @@ export function createAffair(authority: PublicKey, affairPayload: AffairPayload)
   const createAffairIx = createCreateAffairInstruction(
     {
       authority,
+      lender,
       affair,
       affairsList,
       vault,
@@ -139,9 +141,12 @@ export async function terminateAffair(connection: Connection, authority: PublicK
   const [vault] = findVault();
   if (vacant) {
     const [threadAuthority] = findThreadAuthority();
+    const [lender] = findLender(authority);
     const terminateAffairIx = createTerminateVacantAffairInstruction(
       {
         signer: authority,
+        authority,
+        lender,
         affair,
         affairsList,
         vault,

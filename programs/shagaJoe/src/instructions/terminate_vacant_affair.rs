@@ -7,6 +7,12 @@ pub struct TerminateVacantAffairAccounts<'info> {
     /// checked below if signer == client or thread
     #[account(mut)]
     pub signer: Signer<'info>,
+    /// checked below if signer == client or thread
+    #[account(mut)]
+    pub authority: SystemAccount<'info>,
+    /// checked below if signer == client or thread
+    #[account(mut, has_one = authority @ ShagaErrorCode::UnauthorizedAffairCreation, seeds = [SEED_LENDER, affair.authority.as_ref()], bump)]
+    pub lender: Account<'info, Lender>,
     // /// Verify that only this thread can execute the ThreadTick Instruction
     // #[account(signer, constraint = thread.authority.eq(&thread_authority.key()))]
     // pub thread: Account<'info, Thread>,
@@ -60,6 +66,19 @@ pub fn handle_vacant_affair_termination(ctx: Context<TerminateVacantAffairAccoun
 
     // handled by anchor
     affair_account.close(vault.to_account_info())?;
+
+    // check if lender has some sols to retrieve.
+    let lender_account_info = &mut ctx.accounts.lender.to_account_info();
+    let lender_rent = Rent::get()?.minimum_balance(lender_account_info.data_len());
+    let lender_balance = lender_account_info.lamports() - lender_rent;
+    if lender_balance > 0 {
+        let authority_account_info = &mut ctx.accounts.authority.to_account_info();
+        let mut authority_lamports = authority_account_info.try_borrow_mut_lamports()?;
+        let mut lender_lamports = lender_account_info.try_borrow_mut_lamports()?;
+
+        **lender_lamports -= lender_balance;
+        **authority_lamports += lender_balance;
+    }
 
     Ok(())
 }

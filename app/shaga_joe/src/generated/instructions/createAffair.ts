@@ -38,6 +38,7 @@ export const createAffairStruct = new beet.BeetArgsStruct<
  *
  * @property [_writable_, **signer**] authority
  * @property [_writable_] affair
+ * @property [_writable_] lender
  * @property [_writable_] affairsList
  * @property [_writable_] affairClockworkThread
  * @property [] vault
@@ -50,6 +51,7 @@ export const createAffairStruct = new beet.BeetArgsStruct<
 export type CreateAffairInstructionAccounts = {
   authority: web3.PublicKey
   affair: web3.PublicKey
+  lender: web3.PublicKey
   affairsList: web3.PublicKey
   affairClockworkThread: web3.PublicKey
   vault: web3.PublicKey
@@ -90,6 +92,11 @@ export function createCreateAffairInstruction(
     },
     {
       pubkey: accounts.affair,
+      isWritable: true,
+      isSigner: false,
+    },
+    {
+      pubkey: accounts.lender,
       isWritable: true,
       isSigner: false,
     },

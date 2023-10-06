@@ -5,6 +5,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::InstructionData;
 
 use solana_program::instruction::Instruction;
+use solana_program::native_token::Sol;
 
 #[derive(Accounts)]
 pub struct StartRentalAccounts<'info> {
@@ -74,30 +75,26 @@ pub fn handle_starting_rental(
 
     // Step 4: Calculate rent cost & fee amount
     // using a factor of 100:
-    let scaling_factor = 100_u64;
+    let scaling_factor = 100.0;
 
     let rental_duration_seconds = rental_termination_time
         .checked_sub(current_time)
         .ok_or(ShagaErrorCode::NumericalOverflow)?;
 
     let rental_duration_hours_float = rental_duration_seconds as f64 / 3600.0;
-    let scaled_rental_duration = (rental_duration_hours_float * scaling_factor as f64) as u64;
+    let scaled_rental_duration = rental_duration_hours_float * scaling_factor;
+    let rent_amount_scaled = scaled_rental_duration * affair_account.sol_per_hour as f64;
 
-    let scaled_sol_per_hour = affair_account.sol_per_hour as u64 * scaling_factor;
-
-    let rent_amount = scaled_rental_duration
-        .checked_mul(scaled_sol_per_hour as u64)
-        .ok_or(ShagaErrorCode::NumericalOverflow)?;
-
-    let rent_amount_final = rent_amount
-        .checked_div(scaling_factor)
-        .ok_or(ShagaErrorCode::NumericalOverflow)?;
-
+    let rent_amount = (rent_amount_scaled / scaling_factor) as u64;
     let fee_amount = 1_u128
-        .checked_mul(rent_amount_final as u128)
+        .checked_mul(rent_amount as u128)
         .ok_or(ShagaErrorCode::NumericalOverflow)?
         .checked_div(100)
         .ok_or(ShagaErrorCode::NumericalOverflow)? as u64;
+
+    msg!("rent_amount: {}", Sol(rent_amount));
+
+    msg!("fee_amount: {}", Sol(fee_amount));
 
     // Step 4A: Check balance in terms of Lamports
     if client_account.lamports() < (rent_amount + fee_amount) as u64 {

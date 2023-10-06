@@ -29,11 +29,8 @@ solita_build:
 	cd app/shaga_joe && yarn node_solita && cd ..
 
 transfer_to_test_keypairs:
-	# solana transfer app/test_keypairs/0.json 20
-	# solana transfer app/test_keypairs/1.json 5
-	# solana transfer app/test_keypairs/2.json 5 
-	# solana transfer app/test_keypairs/3.json 5 
-	# solana transfer app/test_keypairs/4.json 5 
+	solana transfer app/test_keypairs/5.json 2 --allow-unfunded-recipient
+	solana transfer app/test_keypairs/6.json 2 --allow-unfunded-recipient
 
 balance_test_keypairs:
 	solana balance -k app/test_keypairs/0.json
@@ -41,6 +38,8 @@ balance_test_keypairs:
 	solana balance -k app/test_keypairs/2.json
 	solana balance -k app/test_keypairs/3.json
 	solana balance -k app/test_keypairs/4.json
+	solana balance -k app/test_keypairs/5.json
+	solana balance -k app/test_keypairs/6.json
 
 run_ts:
 	cd app/shaga_joe && yarn start $m && cd ../.. 

@@ -71,6 +71,11 @@
           "isSigner": false
         },
         {
+          "name": "lender",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "affairsList",
           "isMut": true,
           "isSigner": false
@@ -306,6 +311,22 @@
           "name": "signer",
           "isMut": true,
           "isSigner": true,
+          "docs": [
+            "checked below if signer == client or thread"
+          ]
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "checked below if signer == client or thread"
+          ]
+        },
+        {
+          "name": "lender",
+          "isMut": true,
+          "isSigner": false,
           "docs": [
             "checked below if signer == client or thread"
           ]

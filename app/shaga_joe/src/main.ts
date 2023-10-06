@@ -8,12 +8,13 @@ import {
   terminateAffair,
 } from './custom';
 import shagaFeePayerRaw from '../../test_keypairs/1.json';
-import shagaLenderRaw from '../../test_keypairs/2.json';
-import shagaClientRaw from '../../test_keypairs/3.json';
-import shagaLenderTwoRaw from '../../test_keypairs/4.json';
-import shagaClientTwoRaw from '../../test_keypairs/0.json';
+import shagaLenderRaw from '../../test_keypairs/3.json';
+import shagaClientRaw from '../../test_keypairs/2.json';
+import shagaLenderTwoRaw from '../../test_keypairs/5.json';
+import shagaClientTwoRaw from '../../test_keypairs/6.json';
 import {
   Connection,
+  LAMPORTS_PER_SOL,
   Keypair,
   TransactionInstruction
 } from '@solana/web3.js';
@@ -36,9 +37,9 @@ async function main() {
   let instructions: TransactionInstruction[] = [];
 
   // instructions.push(initializeShagaAccounts(shagaFeePayer.publicKey));
-  // instructions.push(createLender(shagaLender.publicKey));
+  // instructions.push(createLender(shagaLenderTwo.publicKey));
 
-  // // // Generate some dummy data
+  // // Generate some dummy data
   // const dummyIpAddress = '192.168.1.1';
   // const dummyCpuName = 'Intel Core i7-9700K';
   // const dummyGpuName = 'NVIDIA GeForce RTX 3070';
@@ -57,43 +58,39 @@ async function main() {
   //   cpuName: cpuNameArray,
   //   gpuName: gpuNameArray,
   //   totalRamMb: 16384, // Assuming 16GB RAM for this dummy data
-  //   usdcPerHour: 100000, // Assuming a dummy value of 10 USDC per hour
+  //   solPerHour: 1 * LAMPORTS_PER_SOL, // Assuming a dummy value of 1 SOL per HOUR
   //   affairTerminationTime: new BN(terminationTimeInSeconds) // Assuming a dummy timestamp value
   // };
-  // instructions.push(createAffair(shagaLender.publicKey, affairPayload));
+  // instructions.push(createAffair(shagaLenderTwo.publicKey, affairPayload));
 
-  const affairKey = new PublicKey("J2SoMdVDKfjUgUB39xCcBkvcbrKDbQ9hqhBk47WMzSUk")
-  // constant
-  const affairsListKey = new PublicKey("HcD1vP1TzV3Su5Tkw5EfrvAZzMAjwDG9yLce5aUGazrz")
-  const affairList = await AffairsList.fromAccountAddress(connection, affairsListKey)
-  console.log(affairList.pretty())
-  const getAffair = await Affair.fromAccountAddress(connection, affairKey) // affairList.activeAffairs[0])
-  console.log(getAffair.pretty())
+  const affairKey = new PublicKey("7XaYRoCVxssT3vhv9XH5hUR92KkfqQA3Rrs4tx66mzDS")
+  // // constant
+  // const affairsListKey = new PublicKey("HcD1vP1TzV3Su5Tkw5EfrvAZzMAjwDG9yLce5aUGazrz")
+  // const affairList = await AffairsList.fromAccountAddress(connection, affairsListKey)
+  // console.log(affairList.pretty())
+  // const getAffair = await Affair.fromAccountAddress(connection, affairKey) // affairList.activeAffairs[0])
+  // console.log(getAffair.pretty())
 
-  const currentTimeInSeconds = Math.floor(new Date().getTime() / 1000);
-  console.log(currentTimeInSeconds);
-  // Add 1 hour to the current time
-  const terminationTimeInSeconds = currentTimeInSeconds + 1000;
-  instructions.push(await startRental(connection, shagaClient.publicKey, affairKey, terminationTimeInSeconds));
-
+  // const currentTimeInSeconds = Math.floor(new Date().getTime() / 1000);
+  // console.log(currentTimeInSeconds);
+  // // Add 1 hour to the current time
+  // const terminationTimeInSeconds = currentTimeInSeconds + 1800;
+  // instructions.push(await startRental(connection, shagaClientTwo.publicKey, affairKey, terminationTimeInSeconds));
+  // console.log(shagaClient.publicKey.toBase58())
   // instructions.push(await endRental(shagaClient.publicKey, affairKey))
 
-  // instructions.push(await terminateAffair(connection, shagaLenderTwo.publicKey, affairKey, false))
+  instructions.push(await terminateAffair(connection, shagaLenderTwo.publicKey, affairKey, false))
 
 
-  // await signAndSendLegacyTransaction(connection,
-  //   // [shagaLender],
-  //   // [shagaLenderTwo],
-  //   [shagaClient],
-  //   // [shagaLenderTwo],
-  //   // [shagaClientTwo],
-  //   // shagaLender,
-  //   // shagaLenderTwo,
-  //   shagaClient,
-  //   // shagaLenderTwo,
-  //   // shagaClientTwo,
-  //   instructions
-  // );
+  await signAndSendLegacyTransaction(connection,
+    // [shagaLender],
+    [shagaLenderTwo],
+    // [shagaClientTwo],
+    // shagaLender,
+    shagaLenderTwo,
+    // shagaClientTwo,
+    instructions
+  );
 }
 
 main()
