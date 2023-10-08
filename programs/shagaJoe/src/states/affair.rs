@@ -22,9 +22,12 @@ pub struct Affair {
     pub authority: Pubkey,
     pub client: Pubkey,
     pub rental: Option<Pubkey>,
-    pub ip_address: [u8; 15],
-    pub cpu_name: [u8; 64],
-    pub gpu_name: [u8; 64],
+    #[max_len(15)]
+    pub ip_address: String, // puffed to 15 characters (max)
+    #[max_len(64)]
+    pub cpu_name: String, // puffed to 64 characters (max)
+    #[max_len(64)]
+    pub gpu_name: String, // puffed to 64 characters (max)
     pub total_ram_mb: u32,
     // in LAMPORTS_PER_SOL
     pub sol_per_hour: u64,
@@ -41,9 +44,9 @@ impl Default for Affair {
             authority: Pubkey::default(),
             client: Pubkey::default(),
             rental: Option::from(Pubkey::default()),
-            ip_address: [0u8; 15],
-            cpu_name: [0u8; 64],
-            gpu_name: [0u8; 64],
+            ip_address: "".to_string(),
+            cpu_name: "".to_string(),
+            gpu_name: "".to_string(),
             total_ram_mb: 0,
             sol_per_hour: 0,
             affair_state: AffairState::default(),

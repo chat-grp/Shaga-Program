@@ -6,9 +6,9 @@ use solana_program::instruction::Instruction;
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct AffairPayload {
-    pub ip_address: [u8; 15],
-    pub cpu_name: [u8; 64],
-    pub gpu_name: [u8; 64],
+    pub ip_address: String,
+    pub cpu_name: String,
+    pub gpu_name: String,
     pub total_ram_mb: u32,
     pub sol_per_hour: u64,
     pub affair_termination_time: u64,
@@ -17,9 +17,9 @@ pub struct AffairPayload {
 impl Default for AffairPayload {
     fn default() -> Self {
         Self {
-            ip_address: [0u8; 15],
-            cpu_name: [0u8; 64],
-            gpu_name: [0u8; 64],
+            ip_address: "".to_string(), //[0u8; 15],
+            cpu_name: "".to_string(),   //[0u8; 64],
+            gpu_name: "".to_string(),   //[0u8; 64],
             total_ram_mb: 0,
             sol_per_hour: 0,
             affair_termination_time: 0,
@@ -89,8 +89,10 @@ pub fn handle_create_affair(
             thread_authority: thread_authority.key(),
             affair: affair_account.key(),
             affairs_list: affairs_list_account.key(),
+            affair_clockwork_thread: affair_clockwork_thread.key(),
             vault: vault.key(),
             system_program: system_program.key(),
+            clockwork_program: clockwork_program.key()
         }
         .to_account_metas(Some(true)),
         data: crate::instruction::TerminateVacantAffair {}.data(),

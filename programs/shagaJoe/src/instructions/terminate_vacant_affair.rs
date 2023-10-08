@@ -1,6 +1,6 @@
 use crate::{errors::*, seeds::*, states::*};
 use anchor_lang::prelude::*;
-use clockwork_sdk::state::Thread;
+use clockwork_sdk::{cpi::thread_delete, state::Thread};
 
 #[derive(Accounts)]
 pub struct TerminateVacantAffairAccounts<'info> {
@@ -22,6 +22,9 @@ pub struct TerminateVacantAffairAccounts<'info> {
     pub affairs_list: Account<'info, AffairsList>,
     #[account(mut, seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,
+    /// CHECK: checked below
+    #[account(mut)]
+    pub affair_clockwork_thread: UncheckedAccount<'info>,
     /// The Thread Admin
     /// The authority that was used as a seed to derive the thread address
     /// `thread_authority` should equal `thread.thread_authority`
@@ -29,6 +32,8 @@ pub struct TerminateVacantAffairAccounts<'info> {
     #[account(seeds = [SEED_AUTHORITY_THREAD], bump)]
     pub thread_authority: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
+    #[account(address = clockwork_sdk::ID)]
+    pub clockwork_program: Program<'info, clockwork_sdk::ThreadProgram>,
 }
 
 pub fn handle_vacant_affair_termination(ctx: Context<TerminateVacantAffairAccounts>) -> Result<()> {
@@ -37,6 +42,9 @@ pub fn handle_vacant_affair_termination(ctx: Context<TerminateVacantAffairAccoun
     let affairs_list_account = &mut ctx.accounts.affairs_list;
     let signer = &ctx.accounts.signer;
     let thread_authority = &ctx.accounts.thread_authority;
+    let authority = &ctx.accounts.authority;
+    let affair_clockwork_thread = &ctx.accounts.affair_clockwork_thread;
+    let clockwork_program = &ctx.accounts.clockwork_program;
 
     // check if signer is the client
     if affair_account.authority != signer.key() {
@@ -54,6 +62,49 @@ pub fn handle_vacant_affair_termination(ctx: Context<TerminateVacantAffairAccoun
             msg!("Invalid clockwork thread rental termination key.");
             return Err(ShagaErrorCode::InvalidSigner.into());
         }
+    } else {
+        // TODO: figure out if we should delete the thread if the thread executed the instruction
+        let borrow_affair_account = affair_account.clone();
+
+        let (thread_id, _bump) = Pubkey::find_program_address(
+            &[
+                SEED_THREAD,
+                thread_authority.key().as_ref(),
+                borrow_affair_account.key().as_ref(),
+            ],
+            ctx.program_id,
+        );
+        let thread_id_vec: Vec<u8> = thread_id.to_bytes().to_vec();
+
+        // Step 6: Fetch the bump seed associated with the authority
+        let (clockwork_thread_computed, _bump) = Pubkey::find_program_address(
+            &[
+                SEED_THREAD,
+                thread_authority.key().as_ref(),
+                thread_id_vec.as_slice().as_ref(),
+            ],
+            &clockwork_program.key(),
+        );
+        if clockwork_thread_computed.key() != affair_clockwork_thread.key() {
+            msg!("Invalid clockwork thread affair termination key.");
+            return Err(ShagaErrorCode::InvalidTerminationTime.into());
+        }
+
+        let ta_bump = *ctx.bumps.get("thread_authority").unwrap();
+        let cpi_signer: &[&[u8]] = &[SEED_AUTHORITY_THREAD, &[ta_bump]];
+        let binding_seeds = &[cpi_signer];
+        // Step 7: Create the termination thread
+        let cpi_ctx = CpiContext::new_with_signer(
+            clockwork_program.to_account_info(),
+            clockwork_sdk::cpi::ThreadDelete {
+                authority: thread_authority.to_account_info(),
+                close_to: authority.to_account_info(),
+                thread: affair_clockwork_thread.to_account_info(),
+            },
+            binding_seeds,
+        );
+
+        thread_delete(cpi_ctx)?;
     }
     if affair_account.rental.is_some() {
         msg!("Invalid instruction there is an on going rental.");

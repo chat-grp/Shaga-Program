@@ -232,11 +232,21 @@
         },
         {
           "name": "vault",
-          "isMut": false,
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rentalClockworkThread",
+          "isMut": true,
           "isSigner": false
         },
         {
           "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "clockworkProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -294,7 +304,27 @@
           "isSigner": false
         },
         {
+          "name": "affairClockworkThread",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rentalClockworkThread",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "threadAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "clockworkProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -347,6 +377,11 @@
           "isSigner": false
         },
         {
+          "name": "affairClockworkThread",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "threadAuthority",
           "isMut": false,
           "isSigner": false,
@@ -358,6 +393,11 @@
         },
         {
           "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "clockworkProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -401,30 +441,15 @@
           },
           {
             "name": "ipAddress",
-            "type": {
-              "array": [
-                "u8",
-                15
-              ]
-            }
+            "type": "string"
           },
           {
             "name": "cpuName",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
+            "type": "string"
           },
           {
             "name": "gpuName",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
+            "type": "string"
           },
           {
             "name": "totalRamMb",
@@ -528,30 +553,15 @@
         "fields": [
           {
             "name": "ipAddress",
-            "type": {
-              "array": [
-                "u8",
-                15
-              ]
-            }
+            "type": "string"
           },
           {
             "name": "cpuName",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
+            "type": "string"
           },
           {
             "name": "gpuName",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
+            "type": "string"
           },
           {
             "name": "totalRamMb",

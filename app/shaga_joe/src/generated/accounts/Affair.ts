@@ -19,9 +19,9 @@ export type AffairArgs = {
   authority: web3.PublicKey
   client: web3.PublicKey
   rental: beet.COption<web3.PublicKey>
-  ipAddress: number[] /* size: 15 */
-  cpuName: number[] /* size: 64 */
-  gpuName: number[] /* size: 64 */
+  ipAddress: string
+  cpuName: string
+  gpuName: string
   totalRamMb: number
   solPerHour: beet.bignum
   affairState: AffairState
@@ -43,9 +43,9 @@ export class Affair implements AffairArgs {
     readonly authority: web3.PublicKey,
     readonly client: web3.PublicKey,
     readonly rental: beet.COption<web3.PublicKey>,
-    readonly ipAddress: number[] /* size: 15 */,
-    readonly cpuName: number[] /* size: 64 */,
-    readonly gpuName: number[] /* size: 64 */,
+    readonly ipAddress: string,
+    readonly cpuName: string,
+    readonly gpuName: string,
     readonly totalRamMb: number,
     readonly solPerHour: beet.bignum,
     readonly affairState: AffairState,
@@ -250,9 +250,9 @@ export const affairBeet = new beet.FixableBeetStruct<
     ['authority', beetSolana.publicKey],
     ['client', beetSolana.publicKey],
     ['rental', beet.coption(beetSolana.publicKey)],
-    ['ipAddress', beet.uniformFixedSizeArray(beet.u8, 15)],
-    ['cpuName', beet.uniformFixedSizeArray(beet.u8, 64)],
-    ['gpuName', beet.uniformFixedSizeArray(beet.u8, 64)],
+    ['ipAddress', beet.utf8String],
+    ['cpuName', beet.utf8String],
+    ['gpuName', beet.utf8String],
     ['totalRamMb', beet.u32],
     ['solPerHour', beet.u64],
     ['affairState', affairStateBeet],

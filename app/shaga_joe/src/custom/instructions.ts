@@ -114,6 +114,8 @@ export async function endRental(client: PublicKey, affair: PublicKey) {
   const [threadAuthority] = findThreadAuthority();
   const [escrow] = findRentEscrow(lender, client);
   const [rental] = findRentAccount(lender, client);
+  const [threadId] = findRentalThreadId(threadAuthority, rental);
+  const [rentalClockworkThread] = findClockworkThreadAccount(threadAuthority, threadId);
 
   const endRentalIx = createEndRentalInstruction(
     {
@@ -125,7 +127,9 @@ export async function endRental(client: PublicKey, affair: PublicKey) {
       vault,
       escrow,
       rental,
-      threadAuthority
+      threadAuthority,
+      rentalClockworkThread,
+      clockworkProgram: CLOCKWORK_PROGRAM_ID
     },
     {
       terminationBy: RentalTerminationAuthority.Client
@@ -139,9 +143,10 @@ export async function terminateAffair(connection: Connection, authority: PublicK
   let [lender] = findLender(authority);
   const [affairsList] = findAffairList();
   const [vault] = findVault();
+  const [threadAuthority] = findThreadAuthority();
+  const [threadId] = findAffairThreadId(threadAuthority, affair);
+  const [affairClockworkThread] = findClockworkThreadAccount(threadAuthority, threadId);
   if (vacant) {
-    const [threadAuthority] = findThreadAuthority();
-    const [lender] = findLender(authority);
     const terminateAffairIx = createTerminateVacantAffairInstruction(
       {
         signer: authority,
@@ -150,7 +155,9 @@ export async function terminateAffair(connection: Connection, authority: PublicK
         affair,
         affairsList,
         vault,
-        threadAuthority
+        threadAuthority,
+        affairClockworkThread,
+        clockworkProgram: CLOCKWORK_PROGRAM_ID
       }
     )
     return terminateAffairIx
@@ -160,6 +167,8 @@ export async function terminateAffair(connection: Connection, authority: PublicK
   [lender] = findLender(affairData.authority);
   const [escrow] = findRentEscrow(lender, affairData.client);
   const [rental] = findRentAccount(lender, affairData.client);
+  const [threadIdRental] = findRentalThreadId(threadAuthority, rental);
+  const [rentalClockworkThread] = findClockworkThreadAccount(threadAuthority, threadIdRental);
 
   const terminateAffairIx = createTerminateAffairInstruction(
     {
@@ -171,6 +180,10 @@ export async function terminateAffair(connection: Connection, authority: PublicK
       vault,
       escrow,
       rental,
+      threadAuthority,
+      affairClockworkThread,
+      rentalClockworkThread,
+      clockworkProgram: CLOCKWORK_PROGRAM_ID
     }
   )
   return terminateAffairIx

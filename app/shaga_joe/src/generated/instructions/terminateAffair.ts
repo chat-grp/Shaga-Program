@@ -30,6 +30,10 @@ export const terminateAffairStruct = new beet.BeetArgsStruct<{
  * @property [_writable_] escrow
  * @property [_writable_] rental
  * @property [_writable_] vault
+ * @property [_writable_] affairClockworkThread
+ * @property [_writable_] rentalClockworkThread
+ * @property [] threadAuthority
+ * @property [] clockworkProgram
  * @category Instructions
  * @category TerminateAffair
  * @category generated
@@ -43,7 +47,11 @@ export type TerminateAffairInstructionAccounts = {
   escrow: web3.PublicKey
   rental: web3.PublicKey
   vault: web3.PublicKey
+  affairClockworkThread: web3.PublicKey
+  rentalClockworkThread: web3.PublicKey
+  threadAuthority: web3.PublicKey
   systemProgram?: web3.PublicKey
+  clockworkProgram: web3.PublicKey
   anchorRemainingAccounts?: web3.AccountMeta[]
 }
 
@@ -108,7 +116,27 @@ export function createTerminateAffairInstruction(
       isSigner: false,
     },
     {
+      pubkey: accounts.affairClockworkThread,
+      isWritable: true,
+      isSigner: false,
+    },
+    {
+      pubkey: accounts.rentalClockworkThread,
+      isWritable: true,
+      isSigner: false,
+    },
+    {
+      pubkey: accounts.threadAuthority,
+      isWritable: false,
+      isSigner: false,
+    },
+    {
       pubkey: accounts.systemProgram ?? web3.SystemProgram.programId,
+      isWritable: false,
+      isSigner: false,
+    },
+    {
+      pubkey: accounts.clockworkProgram,
       isWritable: false,
       isSigner: false,
     },

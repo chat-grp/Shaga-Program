@@ -17,9 +17,9 @@ pub struct StartRentalAccounts<'info> {
     pub affair: Account<'info, Affair>,
     #[account(mut, seeds = [SEED_AFFAIR_LIST], bump)]
     pub affairs_list: Account<'info, AffairsList>,
-    #[account(init_if_needed, payer = client, space = Escrow::size(), seeds = [SEED_ESCROW, lender.key().as_ref(), client.key().as_ref()], bump)]
+    #[account(init, payer = client, space = Escrow::size(), seeds = [SEED_ESCROW, lender.key().as_ref(), client.key().as_ref()], bump)]
     pub escrow: Account<'info, Escrow>,
-    #[account(init_if_needed, payer = client, space = Rental::size(), seeds = [SEED_RENTAL, lender.key().as_ref(), client.key().as_ref()], bump)]
+    #[account(init, payer = client, space = Rental::size(), seeds = [SEED_RENTAL, lender.key().as_ref(), client.key().as_ref()], bump)]
     pub rental: Account<'info, Rental>,
     #[account(mut, seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,
@@ -149,22 +149,6 @@ pub fn handle_starting_rental(
     );
 
     // Step 9A: Accounts for instruction
-    // let end_rental_accounts = vec![
-    //     AccountMeta::new_readonly(client_account.key(), true), // Signer
-    //     AccountMeta::new(affair_account.key(), false),
-    //     AccountMeta::new(lender.key(), false),
-    //     AccountMeta::new(escrow.key(), false),
-    //     AccountMeta::new(rental_account.key(), false),
-    //     AccountMeta::new(vault.key(), false),
-    //     AccountMeta::new_readonly(system_program.key(), false),
-    //     AccountMeta::new_readonly(rental_clockwork_thread.key(), true), // Signer
-    // ];
-    // // Step 9B: Instruction
-    // let end_rental_instruction = Instruction {
-    //     program_id: ID,
-    //     accounts: end_rental_accounts,
-    //     data: RentalTerminationAuthority::Clockwork.try_to_vec()?,
-    // };
     let target_ix = Instruction {
         program_id: ID,
         accounts: crate::__client_accounts_end_rental_accounts::EndRentalAccounts {
@@ -177,7 +161,9 @@ pub fn handle_starting_rental(
             affair: affair_account.key(),
             affairs_list: affairs_list.key(),
             vault: vault.key(),
+            rental_clockwork_thread: rental_clockwork_thread.key(),
             system_program: system_program.key(),
+            clockwork_program: clockwork_program.key(),
         }
         .to_account_metas(Some(true)),
         data: crate::instruction::EndRental {

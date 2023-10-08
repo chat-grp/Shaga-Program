@@ -47,7 +47,9 @@ export const endRentalStruct = new beet.BeetArgsStruct<
  * @property [_writable_] affairsList
  * @property [_writable_] escrow
  * @property [_writable_] rental
- * @property [] vault
+ * @property [_writable_] vault
+ * @property [_writable_] rentalClockworkThread
+ * @property [] clockworkProgram
  * @category Instructions
  * @category EndRental
  * @category generated
@@ -62,7 +64,9 @@ export type EndRentalInstructionAccounts = {
   escrow: web3.PublicKey
   rental: web3.PublicKey
   vault: web3.PublicKey
+  rentalClockworkThread: web3.PublicKey
   systemProgram?: web3.PublicKey
+  clockworkProgram: web3.PublicKey
   anchorRemainingAccounts?: web3.AccountMeta[]
 }
 
@@ -132,11 +136,21 @@ export function createEndRentalInstruction(
     },
     {
       pubkey: accounts.vault,
-      isWritable: false,
+      isWritable: true,
+      isSigner: false,
+    },
+    {
+      pubkey: accounts.rentalClockworkThread,
+      isWritable: true,
       isSigner: false,
     },
     {
       pubkey: accounts.systemProgram ?? web3.SystemProgram.programId,
+      isWritable: false,
+      isSigner: false,
+    },
+    {
+      pubkey: accounts.clockworkProgram,
       isWritable: false,
       isSigner: false,
     },

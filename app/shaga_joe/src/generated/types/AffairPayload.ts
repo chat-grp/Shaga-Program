@@ -7,9 +7,9 @@
 
 import * as beet from '@metaplex-foundation/beet'
 export type AffairPayload = {
-  ipAddress: number[] /* size: 15 */
-  cpuName: number[] /* size: 64 */
-  gpuName: number[] /* size: 64 */
+  ipAddress: string
+  cpuName: string
+  gpuName: string
   totalRamMb: number
   solPerHour: beet.bignum
   affairTerminationTime: beet.bignum
@@ -19,11 +19,11 @@ export type AffairPayload = {
  * @category userTypes
  * @category generated
  */
-export const affairPayloadBeet = new beet.BeetArgsStruct<AffairPayload>(
+export const affairPayloadBeet = new beet.FixableBeetArgsStruct<AffairPayload>(
   [
-    ['ipAddress', beet.uniformFixedSizeArray(beet.u8, 15)],
-    ['cpuName', beet.uniformFixedSizeArray(beet.u8, 64)],
-    ['gpuName', beet.uniformFixedSizeArray(beet.u8, 64)],
+    ['ipAddress', beet.utf8String],
+    ['cpuName', beet.utf8String],
+    ['gpuName', beet.utf8String],
     ['totalRamMb', beet.u32],
     ['solPerHour', beet.u64],
     ['affairTerminationTime', beet.u64],

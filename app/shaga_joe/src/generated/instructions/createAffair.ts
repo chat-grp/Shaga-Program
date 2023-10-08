@@ -22,7 +22,7 @@ export type CreateAffairInstructionArgs = {
  * @category CreateAffair
  * @category generated
  */
-export const createAffairStruct = new beet.BeetArgsStruct<
+export const createAffairStruct = new beet.FixableBeetArgsStruct<
   CreateAffairInstructionArgs & {
     instructionDiscriminator: number[] /* size: 8 */
   }
