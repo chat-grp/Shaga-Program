@@ -308,13 +308,39 @@ createErrorFromNameLookup.set(
 )
 
 /**
+ * UnauthorizedAffairTerminator: 'Only authority can terminate affairs'
+ *
+ * @category Errors
+ * @category generated
+ */
+export class UnauthorizedAffairTerminatorError extends Error {
+  readonly code: number = 0x177d
+  readonly name: string = 'UnauthorizedAffairTerminator'
+  constructor() {
+    super('Only authority can terminate affairs')
+    if (typeof Error.captureStackTrace === 'function') {
+      Error.captureStackTrace(this, UnauthorizedAffairTerminatorError)
+    }
+  }
+}
+
+createErrorFromCodeLookup.set(
+  0x177d,
+  () => new UnauthorizedAffairTerminatorError()
+)
+createErrorFromNameLookup.set(
+  'UnauthorizedAffairTerminator',
+  () => new UnauthorizedAffairTerminatorError()
+)
+
+/**
  * InvalidSigner: 'Invalid Signer'
  *
  * @category Errors
  * @category generated
  */
 export class InvalidSignerError extends Error {
-  readonly code: number = 0x177d
+  readonly code: number = 0x177e
   readonly name: string = 'InvalidSigner'
   constructor() {
     super('Invalid Signer')
@@ -324,7 +350,7 @@ export class InvalidSignerError extends Error {
   }
 }
 
-createErrorFromCodeLookup.set(0x177d, () => new InvalidSignerError())
+createErrorFromCodeLookup.set(0x177e, () => new InvalidSignerError())
 createErrorFromNameLookup.set('InvalidSigner', () => new InvalidSignerError())
 
 /**
@@ -334,7 +360,7 @@ createErrorFromNameLookup.set('InvalidSigner', () => new InvalidSignerError())
  * @category generated
  */
 export class InvalidTerminationInstructionError extends Error {
-  readonly code: number = 0x177e
+  readonly code: number = 0x177f
   readonly name: string = 'InvalidTerminationInstruction'
   constructor() {
     super('Invalid Termination Instruction.')
@@ -345,7 +371,7 @@ export class InvalidTerminationInstructionError extends Error {
 }
 
 createErrorFromCodeLookup.set(
-  0x177e,
+  0x177f,
   () => new InvalidTerminationInstructionError()
 )
 createErrorFromNameLookup.set(
@@ -360,7 +386,7 @@ createErrorFromNameLookup.set(
  * @category generated
  */
 export class InvalidRentalClockworkKeyError extends Error {
-  readonly code: number = 0x177f
+  readonly code: number = 0x1780
   readonly name: string = 'InvalidRentalClockworkKey'
   constructor() {
     super('Rental Clockwork Key Mismatch.')
@@ -371,7 +397,7 @@ export class InvalidRentalClockworkKeyError extends Error {
 }
 
 createErrorFromCodeLookup.set(
-  0x177f,
+  0x1780,
   () => new InvalidRentalClockworkKeyError()
 )
 createErrorFromNameLookup.set(
@@ -386,7 +412,7 @@ createErrorFromNameLookup.set(
  * @category generated
  */
 export class NumericalOverflowError extends Error {
-  readonly code: number = 0x1780
+  readonly code: number = 0x1781
   readonly name: string = 'NumericalOverflow'
   constructor() {
     super('Numerical Overflow.')
@@ -396,7 +422,7 @@ export class NumericalOverflowError extends Error {
   }
 }
 
-createErrorFromCodeLookup.set(0x1780, () => new NumericalOverflowError())
+createErrorFromCodeLookup.set(0x1781, () => new NumericalOverflowError())
 createErrorFromNameLookup.set(
   'NumericalOverflow',
   () => new NumericalOverflowError()

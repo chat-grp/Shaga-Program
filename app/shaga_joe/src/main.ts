@@ -40,6 +40,10 @@ async function main() {
   // instructions.push(createLender(shagaLenderTwo.publicKey));
 
   // // Generate some dummy data
+  // the shaga coordinates system. built around online maps coordinates system.
+  // precision does not have to be accurate to the dot that is why only three decimal points are used.
+  // values can be negative. with the format of: ±DD.DDD,±DDD.DDD (lat,long)
+  const dummyCoordinates = '123.123,123.123';
   const dummyIpAddress = '192.168.1.1';
   const dummyCpuName = 'Intel Core i7-9700K';
   const dummyGpuName = 'NVIDIA GeForce RTX 3070';
@@ -50,6 +54,7 @@ async function main() {
   // const terminationTimeInSeconds = currentTimeInSeconds + 3600;
   // // Exported dummy data
   // const affairPayload: AffairPayload = {
+  //   coordinates: dummyCoordinates,
   //   ipAddress: dummyIpAddress,
   //   cpuName: dummyCpuName,
   //   gpuName: dummyGpuName,
@@ -77,7 +82,6 @@ async function main() {
 
   instructions.push(await terminateAffair(connection, shagaLenderTwo.publicKey, affairKey, true))
 
-
   await signAndSendLegacyTransaction(connection,
     [shagaLenderTwo],
     // [shagaClient],
@@ -85,6 +89,25 @@ async function main() {
     // shagaClient,
     instructions
   );
+
+  // devnet feature for debugging. not used anymore.
+  // close all affairs
+  // for (let i = 0; i < affairList.activeAffairs.length; i++) {
+  //   let instructions: TransactionInstruction[] = [];
+
+  //   const affairKey = affairList.activeAffairs[i];
+  //   const instruction = await terminateAffair(connection, shagaLenderTwo.publicKey, affairKey, true);
+  //   instructions.push(instruction);
+
+  //   await signAndSendLegacyTransaction(connection,
+  //     [shagaLenderTwo],
+  //     // [shagaClient],
+  //     shagaLenderTwo,
+  //     // shagaClient,
+  //     instructions
+  //   );
+  // }
+
 }
 
 main()

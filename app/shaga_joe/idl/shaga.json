@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "name": "shaga",
   "instructions": [
     {
@@ -440,6 +440,10 @@
             }
           },
           {
+            "name": "coordinates",
+            "type": "string"
+          },
+          {
             "name": "ipAddress",
             "type": "string"
           },
@@ -551,6 +555,10 @@
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "coordinates",
+            "type": "string"
+          },
           {
             "name": "ipAddress",
             "type": "string"
@@ -675,21 +683,26 @@
     },
     {
       "code": 6013,
+      "name": "UnauthorizedAffairTerminator",
+      "msg": "Only authority can terminate affairs"
+    },
+    {
+      "code": 6014,
       "name": "InvalidSigner",
       "msg": "Invalid Signer"
     },
     {
-      "code": 6014,
+      "code": 6015,
       "name": "InvalidTerminationInstruction",
       "msg": "Invalid Termination Instruction."
     },
     {
-      "code": 6015,
+      "code": 6016,
       "name": "InvalidRentalClockworkKey",
       "msg": "Rental Clockwork Key Mismatch."
     },
     {
-      "code": 6016,
+      "code": 6017,
       "name": "NumericalOverflow",
       "msg": "Numerical Overflow."
     }

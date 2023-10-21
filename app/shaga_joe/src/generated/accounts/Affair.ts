@@ -19,6 +19,7 @@ export type AffairArgs = {
   authority: web3.PublicKey
   client: web3.PublicKey
   rental: beet.COption<web3.PublicKey>
+  coordinates: string
   ipAddress: string
   cpuName: string
   gpuName: string
@@ -43,6 +44,7 @@ export class Affair implements AffairArgs {
     readonly authority: web3.PublicKey,
     readonly client: web3.PublicKey,
     readonly rental: beet.COption<web3.PublicKey>,
+    readonly coordinates: string,
     readonly ipAddress: string,
     readonly cpuName: string,
     readonly gpuName: string,
@@ -62,6 +64,7 @@ export class Affair implements AffairArgs {
       args.authority,
       args.client,
       args.rental,
+      args.coordinates,
       args.ipAddress,
       args.cpuName,
       args.gpuName,
@@ -182,6 +185,7 @@ export class Affair implements AffairArgs {
       authority: this.authority.toBase58(),
       client: this.client.toBase58(),
       rental: this.rental,
+      coordinates: this.coordinates,
       ipAddress: this.ipAddress,
       cpuName: this.cpuName,
       gpuName: this.gpuName,
@@ -250,6 +254,7 @@ export const affairBeet = new beet.FixableBeetStruct<
     ['authority', beetSolana.publicKey],
     ['client', beetSolana.publicKey],
     ['rental', beet.coption(beetSolana.publicKey)],
+    ['coordinates', beet.utf8String],
     ['ipAddress', beet.utf8String],
     ['cpuName', beet.utf8String],
     ['gpuName', beet.utf8String],

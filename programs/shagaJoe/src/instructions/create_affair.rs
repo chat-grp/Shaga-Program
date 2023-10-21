@@ -6,6 +6,7 @@ use solana_program::instruction::Instruction;
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct AffairPayload {
+    pub coordinates: String,
     pub ip_address: String,
     pub cpu_name: String,
     pub gpu_name: String,
@@ -17,9 +18,10 @@ pub struct AffairPayload {
 impl Default for AffairPayload {
     fn default() -> Self {
         Self {
-            ip_address: "".to_string(), //[0u8; 15],
-            cpu_name: "".to_string(),   //[0u8; 64],
-            gpu_name: "".to_string(),   //[0u8; 64],
+            coordinates: "".to_string(),
+            ip_address: "".to_string(),
+            cpu_name: "".to_string(),
+            gpu_name: "".to_string(),
             total_ram_mb: 0,
             sol_per_hour: 0,
             affair_termination_time: 0,
@@ -69,6 +71,7 @@ pub fn handle_create_affair(
 
     // Step 2A: Populate it with payload and default values
     affair_account.authority = authority.key();
+    affair_account.coordinates = payload.coordinates;
     affair_account.ip_address = payload.ip_address;
     affair_account.cpu_name = payload.cpu_name;
     affair_account.gpu_name = payload.gpu_name;

@@ -11,7 +11,7 @@ pub struct TerminateAffairAccounts<'info> {
     /// CHECK: checked below. possibly none.
     #[account(mut)]
     pub client: SystemAccount<'info>,
-    #[account(mut, has_one = authority @ ShagaErrorCode::UnauthorizedAffairCreation, seeds = [SEED_LENDER, affair.authority.as_ref()], bump)]
+    #[account(mut, has_one = authority @ ShagaErrorCode::UnauthorizedAffairTerminator, seeds = [SEED_LENDER, affair.authority.as_ref()], bump)]
     pub lender: Account<'info, Lender>,
     #[account(mut, has_one = authority, seeds = [SEED_AFFAIR, authority.key().as_ref()], bump)]
     pub affair: Account<'info, Affair>,

@@ -22,12 +22,18 @@ pub struct Affair {
     pub authority: Pubkey,
     pub client: Pubkey,
     pub rental: Option<Pubkey>,
+    // the shaga coordinates system.
+    // built around online maps coordinates system.
+    // precision does not have to be accurate to the dot that is why only three decimal points are used.
+    // values can be negative. with the format of: ±DD.DDD,±DDD.DDD (lat,long)
+    #[max_len(17)]
+    pub coordinates: String,
     #[max_len(15)]
-    pub ip_address: String, // puffed to 15 characters (max)
+    pub ip_address: String,
     #[max_len(64)]
-    pub cpu_name: String, // puffed to 64 characters (max)
+    pub cpu_name: String,
     #[max_len(64)]
-    pub gpu_name: String, // puffed to 64 characters (max)
+    pub gpu_name: String,
     pub total_ram_mb: u32,
     // in LAMPORTS_PER_SOL
     pub sol_per_hour: u64,
@@ -35,7 +41,6 @@ pub struct Affair {
     pub affair_termination_time: u64,
     pub active_rental_start_time: u64,
     pub due_rent_amount: u64,
-    //pub active_locked_amount: u64,
 }
 
 impl Default for Affair {
@@ -44,6 +49,7 @@ impl Default for Affair {
             authority: Pubkey::default(),
             client: Pubkey::default(),
             rental: Option::from(Pubkey::default()),
+            coordinates: "".to_string(),
             ip_address: "".to_string(),
             cpu_name: "".to_string(),
             gpu_name: "".to_string(),

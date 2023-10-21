@@ -7,6 +7,7 @@
 
 import * as beet from '@metaplex-foundation/beet'
 export type AffairPayload = {
+  coordinates: string
   ipAddress: string
   cpuName: string
   gpuName: string
@@ -21,6 +22,7 @@ export type AffairPayload = {
  */
 export const affairPayloadBeet = new beet.FixableBeetArgsStruct<AffairPayload>(
   [
+    ['coordinates', beet.utf8String],
     ['ipAddress', beet.utf8String],
     ['cpuName', beet.utf8String],
     ['gpuName', beet.utf8String],

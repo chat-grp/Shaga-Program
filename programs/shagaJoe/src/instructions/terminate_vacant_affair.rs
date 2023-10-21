@@ -11,7 +11,7 @@ pub struct TerminateVacantAffairAccounts<'info> {
     #[account(mut)]
     pub authority: SystemAccount<'info>,
     /// checked below if signer == client or thread
-    #[account(mut, has_one = authority @ ShagaErrorCode::UnauthorizedAffairCreation, seeds = [SEED_LENDER, affair.authority.as_ref()], bump)]
+    #[account(mut, has_one = authority @ ShagaErrorCode::UnauthorizedAffairTerminator, seeds = [SEED_LENDER, affair.authority.as_ref()], bump)]
     pub lender: Account<'info, Lender>,
     // /// Verify that only this thread can execute the ThreadTick Instruction
     // #[account(signer, constraint = thread.authority.eq(&thread_authority.key()))]
@@ -46,7 +46,7 @@ pub fn handle_vacant_affair_termination(ctx: Context<TerminateVacantAffairAccoun
     let affair_clockwork_thread = &ctx.accounts.affair_clockwork_thread;
     let clockwork_program = &ctx.accounts.clockwork_program;
 
-    // check if signer is the client
+    // check if signer is the authority
     if affair_account.authority != signer.key() {
         // check if signer is thread. if it is not then fail early.
         // serialize the signer into a thread or fail.

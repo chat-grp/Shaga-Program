@@ -28,6 +28,8 @@ pub enum ShagaErrorCode {
     InvalidRentalContext,
     #[msg("Only registered lenders can create affairs")]
     UnauthorizedAffairCreation,
+    #[msg("Only authority can terminate affairs")]
+    UnauthorizedAffairTerminator,
     #[msg("Invalid Signer")]
     InvalidSigner,
     #[msg("Invalid Termination Instruction.")]
