@@ -1,14 +1,14 @@
 // states/lender.rs
 
-use anchor_lang::prelude::*;
 use crate::seeds::SEED_LENDER;
+use anchor_lang::prelude::*;
 
 #[account]
 #[derive(InitSpace, Debug, Default)]
 pub struct Lender {
     pub authority: Pubkey,
     pub affairs: u32,
-    pub karma: i32,  // Using i32 to allow both positive and negative karma
+    pub karma: i32, // Using i32 to allow both positive and negative karma
 }
 
 impl Lender {
@@ -30,5 +30,11 @@ impl Lender {
 
     pub fn give_thumbs_down(&mut self) {
         self.karma -= 1;
+    }
+
+    pub fn deserialize_data(src: &[u8]) -> Result<Lender> {
+        let mut p = src;
+        let lender = Lender::try_deserialize(&mut p)?;
+        Ok(lender)
     }
 }

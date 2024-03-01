@@ -1,33 +1,27 @@
+use crate::{seeds::*, states::*};
+
 use anchor_lang::prelude::*;
-use crate::{ Lender, errors::ShagaErrorCode};
-use crate::seeds::SEED_LENDER;
 
-
-pub fn handler(ctx: Context<InitializeLender>) -> Result<()> {
+pub fn handle_lender_initialization(ctx: Context<InitializeLender>) -> Result<()> {
     let lender_account = &mut ctx.accounts.lender;
 
-    if lender_account.authority != Pubkey::default() {
-        return Err(ShagaErrorCode::InvalidLender.into());
-    }
+    // not needed since it would fail in anchor if account already exists.
+    // if lender_account.authority != Pubkey::default() {
+    //     return Err(ShagaErrorCode::InvalidLender.into());
+    // }
 
     let lender_object = Lender::default();
     lender_account.set_inner(lender_object);
-    lender_account.authority = *ctx.accounts.payer.unsigned_key();
+    lender_account.authority = ctx.accounts.payer.key();
 
     Ok(())
-}
-
-impl<'info> InitializeLender<'info> {
-    pub fn is_authorized_to_init_lender(creator: &AccountInfo) -> Result<()> {
-        Ok(())
-    }
 }
 
 #[derive(Accounts)]
 pub struct InitializeLender<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(init, payer=payer, space = Lender::size(), seeds = [SEED_LENDER], bump)]
+    #[account(init, payer=payer, space = Lender::size(), seeds = [SEED_LENDER, payer.key().as_ref()], bump)]
     pub lender: Account<'info, Lender>,
     pub system_program: Program<'info, System>,
 }

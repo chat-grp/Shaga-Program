@@ -1,17 +1,17 @@
-use anchor_lang::prelude::*;
 use crate::errors::ShagaErrorCode;
 use crate::seeds::SEED_AFFAIR_LIST;
+use anchor_lang::prelude::*;
 pub const MAX_AFFAIRS: usize = 100;
 
 #[account]
-#[derive(InitSpace, Debug, Default)]
+#[derive(Debug)]
 pub struct AffairsList {
-    pub active_affairs: [Pubkey; MAX_AFFAIRS],
+    pub active_affairs: Vec<Pubkey>,
 }
 
 impl AffairsList {
     pub fn size() -> usize {
-        8 + AffairsList::INIT_SPACE
+        8 + 4 + (32 * MAX_AFFAIRS) // 4 needed for VEC + 32 pubkey size * MAX_AFFAIRS
     }
 
     pub fn pda() -> (Pubkey, u8) {
@@ -30,6 +30,7 @@ impl AffairsList {
         Ok(())
     }
     pub fn remove_affair(&mut self, affair_to_remove: Pubkey) {
-        self.active_affairs.retain(|&affair| affair != affair_to_remove);
+        self.active_affairs
+            .retain(|&affair| affair != affair_to_remove);
     }
 }

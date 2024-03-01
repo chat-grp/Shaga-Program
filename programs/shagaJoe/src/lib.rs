@@ -1,73 +1,50 @@
 use anchor_lang::prelude::*;
-use clockwork_sdk::state::{ ThreadAccount};
-use crate::seeds::*;
-use crate::errors as ErrorCode;
-
-declare_id!("6AACcBoHBKc2XndsuQpgf6S9M5HP8jDUsgbn7R6EJAMW");
-
-pub mod instructions;
-pub mod states;
-pub mod errors;
-mod seeds;
 pub mod checks;
+pub mod errors;
+pub mod instructions;
+pub mod seeds;
+pub mod states;
+pub use {checks::*, errors::*, instructions::*, seeds::*, states::*};
 
-use instructions::*;
-use states::*;
-
+declare_id!("9SwYZxTQUYruFSHYeTqrtB5pTtuGJEGksh7ufpNS1YK5");
 #[program]
 pub mod shaga {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>
-    ) -> Result<()> {
+    pub fn initialize(_ctx: Context<Initialize>) -> Result<()> {
+        // preliminary account creation
         Ok(())
     }
 
+    pub fn initialize_lender(ctx: Context<InitializeLender>) -> Result<()> {
+        create_lender::handle_lender_initialization(ctx)
+    }
 
-    pub fn initialize_lender(ctx: Context<InitializeLender>
+    pub fn create_affair(ctx: Context<CreateAffairAccounts>, payload: AffairPayload) -> Result<()> {
+        create_affair::handle_create_affair(ctx, payload)
+    }
+
+    pub fn start_rental(
+        ctx: Context<StartRentalAccounts>,
+        rental_termination_time: u64,
     ) -> Result<()> {
-        create_lender::handler(ctx)
+        start_rental::handle_starting_rental(ctx, rental_termination_time)
     }
 
-
-    pub fn create_affair(ctx: Context<AffairAccounts>,
-                         payload: AffairPayload
+    pub fn end_rental(
+        ctx: Context<EndRentalAccounts>,
+        termination_by: RentalTerminationAuthority,
     ) -> Result<()> {
-        create_affair::handler(ctx, payload)
+        end_rental::handle_ending_rental(ctx, termination_by)
     }
 
-    pub fn start_rental(ctx: Context<RentalAccounts>,
-                        rental_termination_time: u64
-    ) -> Result<()> {
-        start_rental::handler(ctx, rental_termination_time)
+    pub fn terminate_affair(ctx: Context<TerminateAffairAccounts>) -> Result<()> {
+        terminate_affair::handle_affair_termination(ctx)
     }
-
-    pub fn end_rental(ctx: Context<RentalAccounts>,
-                      termination_by: RentalTerminationAuthority
-    ) -> Result<()> {
-        end_rental::handler(ctx, termination_by)
+    /// handled by clockwork
+    pub fn terminate_vacant_affair(ctx: Context<TerminateVacantAffairAccounts>) -> Result<()> {
+        terminate_vacant_affair::handle_vacant_affair_termination(ctx)
     }
-
-    pub fn terminate_affair(
-        ctx: Context<AffairAccounts>,
-        termination_by: AffairTerminationAuthority
-    ) -> Result<()> {
-        terminate_affair::handler(ctx, termination_by)
-    }
-
-    /* TODO: filter who can init affairs
-    pub fn is_authorized_to_init_affair(creator: &AccountInfo) -> Result<()> {
-        let client_pubkey = creator.key;
-
-        let lender_data: Lender = Lender::try_from_slice(&creator.data.borrow())?;
-        if &lender_data.authority == client_pubkey {
-            Ok(())
-        } else {
-            msg!("Only registered lenders can start affairs"); // karma > BAN_VALUE
-            return Err(ErrorCode::ShagaErrorCode::UnauthorizedAffairCreation.into());
-        }
-    }
-    */
 
     /*
     pub fn collect_fees{
@@ -76,92 +53,17 @@ pub mod shaga {
     */
 }
 
-
-
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(init, payer=payer, space = AffairsList::INIT_SPACE, seeds = [SEED_AFFAIR_LIST], bump)]
+    #[account(init, payer=payer, space = AffairsList::size(), seeds = [SEED_AFFAIR_LIST], bump)]
     pub affairs_list: Account<'info, AffairsList>,
-    #[account(init, payer=payer, space = Escrow::INIT_SPACE, seeds = [SEED_ESCROW], bump)]
+    #[account(init, payer=payer, space = Escrow::size(), seeds = [SEED_ESCROW], bump)]
     pub vault: Account<'info, Escrow>,
+    /// The pda that will own and manage threads.
+    /// CHECK: safe because it is creating an predetermined signer
+    #[account(init, payer=payer, space = 1, seeds = [SEED_AUTHORITY_THREAD], bump)]
+    pub thread_authority: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
-
-
-
-
-#[derive(Accounts)]
-pub struct AffairAccounts<'info> {
-    #[account(mut)]
-    pub creator: Signer<'info>,
-    #[account(mut, address=Lender::pda(creator.key()).0)]
-    pub lender: Account<'info, Lender>,
-    #[account(init, payer = creator, space = Affair::INIT_SPACE, seeds = [SEED_AFFAIR], bump)]
-    pub affair: Account<'info, Affair>,
-    #[account(mut)]
-    pub affairs_list: Account<'info, AffairsList>,
-    #[account(mut, signer)]
-    pub client: AccountInfo<'info>,
-    #[account(mut)]
-    pub active_rental: Account<'info, Rental>,
-    #[account(mut)]
-    pub active_escrow: Account<'info, Escrow>,
-    #[account(seeds = [SEED_ESCROW], bump)]
-    pub vault: Account<'info, Escrow>,
-    pub system_program: Program<'info, System>,
-    #[account(has_one = authority)]
-    pub affair_clockwork_thread: Account<'info, clockwork_sdk::state::Thread>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct RentalAccounts<'info> {
-    #[account(mut, signer)]
-    pub client: AccountInfo<'info>,
-    #[account(mut)]
-    pub lender: Account<'info, Lender>,
-    #[account(mut)]
-    pub affair: Account<'info, Affair>,
-    #[account(mut)]
-    pub affairs_list: Account<'info, AffairsList>,
-    #[account(init, payer = client, space = Escrow::size(), seeds = [SEED_ESCROW, lender.key().as_ref(), client.key().as_ref()], bump)]
-    pub escrow: Account<'info, Escrow>,
-    #[account(init, payer = client, space = Rental::size(), seeds = [SEED_RENTAL, lender.key().as_ref(), client.key().as_ref()], bump)]
-    pub rental: Account<'info, Rental>,
-    #[account(seeds = [SEED_ESCROW], bump)]
-    pub vault: Account<'info, Escrow>,
-    pub system_program: Program<'info, System>,
-    #[account(signer)]
-    pub rental_clockwork_thread: Account<'info, clockwork_sdk::state::Thread>,
-}
-
-
-/* TODO: OLD VERSION WITH CUSTOM TOKEN PROGRAM (WE'RE USING LAMPORTS IN MVP)
-#[derive(Accounts)]
-pub struct RentalAccounts<'info> {
-    #[account(mut, signer)]
-    pub client: AccountInfo<'info>,
-    #[account(mut)]
-    pub client_token_account: Account<'info, anchor_spl::token::TokenAccount>,
-    #[account(mut)]
-    pub lender_token_account: AccountInfo<'info>,
-    pub token_program: Program<'info, Token>,
-    #[account(mut)]
-    pub affair: Account<'info, Affair>,
-    #[account(mut)]
-    pub lender: Account<'info, Lender>,
-    #[account(init, payer = client, space = Escrow::size(), seeds = [SEED_ESCROW, affair.key().as_ref(), client.key().as_ref()], bump)]
-    pub escrow: Account<'info, Escrow>,
-    #[account(init, payer = client, space = Rental::size(), seeds = SEED_RENTAL, bump)]
-    pub rental: Account<'info, Rental>,
-    #[account(seeds = [SEED_ESCROW], bump)]
-    pub vault: Account<'info, Escrow>,
-    #[account(signer)]
-    pub clockwork_thread: AccountInfo<'info>,
-    #[account(address = clockwork_sdk::ID)]
-    pub clockwork_program: Program<'info, clockwork_sdk::ThreadProgram>,
-    pub system_program: Program<'info, System>,
-}
- */

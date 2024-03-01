@@ -1,10 +1,10 @@
 // states/affair.rs
 
-use anchor_lang::prelude::*;
-use crate::seeds::SEED_AFFAIR;
 use crate::errors::ShagaErrorCode;
+use crate::seeds::SEED_AFFAIR;
+use anchor_lang::prelude::*;
 
-#[derive(InitSpace, Debug, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(InitSpace, Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub enum AffairState {
     Unavailable,
     Available,
@@ -19,30 +19,42 @@ impl Default for AffairState {
 #[account]
 #[derive(InitSpace, Debug)]
 pub struct Affair {
-    pub lender: Pubkey,
+    pub authority: Pubkey,
+    pub client: Pubkey,
     pub rental: Option<Pubkey>,
-    pub ip_address: [u8; 15],
-    pub cpu_name: [u8; 64],
-    pub gpu_name: [u8; 64],
+    // the shaga coordinates system.
+    // built around online maps coordinates system.
+    // precision does not have to be accurate to the dot that is why only three decimal points are used.
+    // values can be negative. with the format of: ±DD.DDD,±DDD.DDD (lat,long)
+    #[max_len(17)]
+    pub coordinates: String,
+    #[max_len(15)]
+    pub ip_address: String,
+    #[max_len(64)]
+    pub cpu_name: String,
+    #[max_len(64)]
+    pub gpu_name: String,
     pub total_ram_mb: u32,
-    pub usdc_per_hour: u32,
+    // in LAMPORTS_PER_SOL
+    pub sol_per_hour: u64,
     pub affair_state: AffairState,
     pub affair_termination_time: u64,
     pub active_rental_start_time: u64,
     pub due_rent_amount: u64,
-    //pub active_locked_amount: u64,
 }
 
 impl Default for Affair {
     fn default() -> Self {
         Self {
-            lender: Pubkey::default(),
+            authority: Pubkey::default(),
+            client: Pubkey::default(),
             rental: Option::from(Pubkey::default()),
-            ip_address: [0u8; 15],
-            cpu_name: [0u8; 64],
-            gpu_name: [0u8; 64],
+            coordinates: "".to_string(),
+            ip_address: "".to_string(),
+            cpu_name: "".to_string(),
+            gpu_name: "".to_string(),
             total_ram_mb: 0,
-            usdc_per_hour: 0,
+            sol_per_hour: 0,
             affair_state: AffairState::default(),
             affair_termination_time: 0,
             active_rental_start_time: 0,
@@ -53,7 +65,6 @@ impl Default for Affair {
 }
 
 impl Affair {
-
     pub fn join(&mut self, rental_key: Pubkey) -> Result<()> {
         if self.affair_state != AffairState::Available {
             msg!("Affair is not available for joining.");
@@ -75,5 +86,11 @@ impl Affair {
 
     pub fn can_join(&self) -> bool {
         self.affair_state == AffairState::Available
+    }
+
+    pub fn deserialize_data(src: &[u8]) -> Result<Affair> {
+        let mut p = src;
+        let affair = Affair::try_deserialize(&mut p)?;
+        Ok(affair)
     }
 }
